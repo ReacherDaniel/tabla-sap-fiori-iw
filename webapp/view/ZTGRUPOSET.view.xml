@@ -4,6 +4,7 @@
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
   xmlns:tnt="sap.tnt"
+  xmlns:plugins="sap.m.plugins"
   height="100%"
 >
   <Page
@@ -86,7 +87,6 @@
               icon="sap-icon://settings"
             />
           </tnt:NavigationList>
-          
         </tnt:SideNavigation>
       </tnt:sideContent>
       <!-- CONTENIDO PRINCIPAL - ESTRUCTURA VERTICAL FIJA -->
@@ -165,7 +165,10 @@
                 />
               </HBox>
               <!-- BUSCADOR -->
-              <HBox alignItems="Center" class="sapUiSmallMarginBegin">
+              <HBox
+                alignItems="Center"
+                class="sapUiSmallMarginBegin"
+              >
                 <SearchField
                   id="searchField"
                   width="250px"
@@ -178,15 +181,23 @@
                   id="sbEstadoQuick"
                   class="sapUiTinyMarginBegin"
                   select=".onQuickFilter"
-                   width="250px"
+                  width="250px"
                 >
-                <items>
-                  <SegmentedButtonItem key="ALL" text="Todos" />
-                  <SegmentedButtonItem key="ACT" text="Activos" />
-                  <SegmentedButtonItem key="INA" text="Inactivos" />
-                </items>
+                  <items>
+                    <SegmentedButtonItem
+                      key="ALL"
+                      text="Todos"
+                    />
+                    <SegmentedButtonItem
+                      key="ACT"
+                      text="Activos"
+                    />
+                    <SegmentedButtonItem
+                      key="INA"
+                      text="Inactivos"
+                    />
+                  </items>
                 </SegmentedButton>
-                
                 <Button
                   icon="sap-icon://filter"
                   press=".onFilterPress2"
@@ -203,7 +214,11 @@
               mode="SingleSelectMaster"
               includeItemInSelection="true"
               selectionChange=".onSelectionChange"
+              fixedLayout="Strict"
             >
+              <dependents>
+                <plugins:ColumnResizer columnResize=".onColumnResize" />
+              </dependents>
               <columns>
                 <Column width="12em">
                   <Text text="Sociedad" />
@@ -278,7 +293,10 @@
                     <Text text="{grupos>IDGRUPOET}" />
                     <Text text="{grupos>ID}" />
                     <Link
-                      text="{path: 'grupos>INFOAD', formatter: '.formatter.truncateInfoAd'}"
+                      text="{
+                        path: 'grupos>INFOAD',
+                        formatter: '.formatter.truncateInfoAd'
+                      }"
                       press=".onInfoAdPress"
                       tooltip="Ver información completa"
                     />

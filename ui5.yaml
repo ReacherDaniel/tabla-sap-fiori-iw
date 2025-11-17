@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://sap.github.io/ui5-tooling/schema/ui5.yaml.json
+
+specVersion: "3.1"
+metadata:
+  name: com.itt.ztgruposet.frontendztgruposet
+type: application
+
+server:
+  customMiddleware:
+    # Live reload
+    - name: fiori-tools-appreload
+      afterMiddleware: compression
+      configuration:
+        port: 35729
+        path: webapp
+        delay: 300
+
+    # FLP preview
+    - name: fiori-tools-preview
+      afterMiddleware: fiori-tools-appreload
+      configuration:
+        flp:
+          theme: sap_horizon
+
+    # UI5 CDN
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: false
+        ui5:
+          path:
+            - /resources
+            - /test-resources
+          url: https://ui5.sap.com
+
+        # <<< PROXY AL BACKEND CAP/CDS >>>
+        backend:
+          - path: /api
+            url: https://app-restful-sap-cds.onrender.com

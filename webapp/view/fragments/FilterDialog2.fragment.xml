@@ -1,0 +1,72 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.ui.layout.form">
+
+  <Dialog
+    id="filterDialog2"
+    title="Filtros avanzados"
+    stretchOnPhone="true">
+
+    <content>
+      <f:SimpleForm
+        editable="true"
+        layout="ResponsiveGridLayout"
+        labelSpanXL="3"
+        labelSpanL="3"
+        labelSpanM="3"
+        columnsXL="2"
+        columnsL="2"
+        columnsM="2">
+
+        <Label text="Sociedad:" />
+        <Input id="fSociedad" placeholder="Ej. 111" />
+
+        <Label text="CEDI:" />
+        <Input id="fCedi" placeholder="Ej. 145" />
+
+        <Label text="Etiqueta:" />
+        <Input id="fEtiqueta" placeholder="Ej. IDETIQUETA" />
+
+        <Label text="Valor:" />
+        <Input id="fValor" placeholder="Ej. IDVALOR" />
+
+        <Label text="Registro entre:" />
+        <DateRangeSelection
+          id="fRegDate"
+          displayFormat="yyyy-MM-dd"
+        />
+
+        <Label text="Estado:" />
+        <SegmentedButton id="fEstado">
+          <items>
+            <SegmentedButtonItem key="ALL" text="Todos" />
+            <SegmentedButtonItem key="ACT" text="Activos" />
+            <SegmentedButtonItem key="INA" text="Inactivos" />
+          </items>
+        </SegmentedButton>
+
+      </f:SimpleForm>
+    </content>
+
+    <buttons>
+      <Button
+        text="Aplicar"
+        type="Emphasized"
+        press="onFilterApply2"/>
+     </buttons>
+
+    <buttons>
+      <Button
+        text="Limpiar"
+        press="onFilterClear"/>
+    </buttons>
+
+    <buttons>
+      <Button
+        text="Cerrar"
+        press="onFilterCancel"/>
+    </buttons>
+
+  </Dialog>
+</core:FragmentDefinition>

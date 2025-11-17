@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://sap.github.io/ui5-tooling/schema/ui5.yaml.json
+specVersion: "3.1"
+metadata:
+  name: com.itt.ztgruposet.frontendztgruposet
+type: application
+server:
+  customMiddleware:
+    # --- 1. EL PROXY VA PRIMERO ---
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: false
+        ui5:
+          path:
+            - /resources
+            - /test-resources
+          url: https://ui5.sap.com
+        
+        # --- 2. AQUÍ ESTÁN AMBOS BACKENDS ---
+        backend:
+          # Tu API en Render (para Guardar/Editar/Borrar)
+          - path: /api
+            url: https://app-restful-sap-cds.onrender.com
+          
+          # API del "otro team" (para los ComboBoxes)
+          - path: /api-catalogos-base
+            url: http://localhost:3034/api/cat
+
+    # Live reload (va después)
+    - name: fiori-tools-appreload
+      afterMiddleware: compression
+      configuration:
+        port: 35729
+        path: webapp
+        delay: 300
+
+    # FLP preview (va al final)
+    - name: fiori-tools-preview
+      afterMiddleware: fiori-tools-appreload
+      configuration:
+        flp:
+          theme: sap_horizon
+

@@ -1,0 +1,332 @@
+<mvc:View
+  controllerName="com.itt.ztgruposet.frontendztgruposet.controller.ZTGRUPOSET"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:tnt="sap.tnt"
+  height="100%"
+>
+  <Page
+    id="toolPageWrapper"
+    showHeader="false"
+    enableScrolling="false"
+  >
+    <tnt:ToolPage id="toolPage">
+      <!-- TOOL HEADER -->
+      <tnt:header>
+        <tnt:ToolHeader
+          id="shellLikeToolHeader"
+          class="sapUiTinyMargin"
+        >
+          <Button
+            icon="sap-icon://menu2"
+            type="Transparent"
+            tooltip="Menu"
+            press=".onCollapseExpandPress"
+          >
+            <layoutData>
+              <OverflowToolbarLayoutData priority="NeverOverflow" />
+            </layoutData>
+          </Button>
+          <Image
+            src="https://www.sap.com/dam/application/shared/logos/sap-logo-svg.svg"
+            decorative="false"
+            press="onLogoPressed"
+            tooltip="SAP Logo"
+            width="60px"
+            height="30px"
+          >
+            <layoutData>
+              <OverflowToolbarLayoutData priority="NeverOverflow" />
+            </layoutData>
+          </Image>
+          <Title
+            text="Proyecto final"
+            wrapping="false"
+          >
+            <layoutData>
+              <OverflowToolbarLayoutData priority="Disappear" />
+            </layoutData>
+          </Title>
+          <ToolbarSpacer />
+          <Avatar
+            src="test-resources/sap/tnt/images/Woman_avatar_01.png"
+            displaySize="XS"
+            press="onAvatarPressed"
+            tooltip="Profile"
+          >
+            <layoutData>
+              <OverflowToolbarLayoutData priority="NeverOverflow" />
+            </layoutData>
+          </Avatar>
+        </tnt:ToolHeader>
+      </tnt:header>
+      <!-- SIDE NAVIGATION -->
+      <tnt:sideContent>
+        <tnt:SideNavigation
+          id="sideNavigation"
+          expanded="false"
+          selectedKey="grupos"
+          itemSelect=".onSideNavItemSelect"
+        >
+          <tnt:NavigationList>
+            <tnt:NavigationListItem
+              key="home"
+              text="Inicio"
+              icon="sap-icon://home"
+            />
+            <tnt:NavigationListItem
+              key="grupos"
+              text="Grupos de SKU"
+              icon="sap-icon://group-2"
+            />
+            <tnt:NavigationListItem
+              key="configuracion"
+              text="Configuración"
+              icon="sap-icon://settings"
+            />
+          </tnt:NavigationList>
+          
+        </tnt:SideNavigation>
+      </tnt:sideContent>
+      <!-- CONTENIDO PRINCIPAL - ESTRUCTURA VERTICAL FIJA -->
+      <tnt:mainContents class="sapUiSmallMargin">
+        <ScrollContainer
+          vertical="true"
+          horizontal="false"
+          height="100%"
+        >
+          <VBox class="sapUiMediumMargin">
+            <!-- TÍTULO  -->
+            <Title
+              id="titlePage"
+              text="Grupos y subgrupos de SKU"
+              titleStyle="H2"
+              class="sapUiSmallMarginBottom"
+            />
+            <!-- CONTENEDOR PARA BOTONES Y BUSCADOR -->
+            <HBox
+              justifyContent="SpaceBetween"
+              alignItems="Center"
+              class="sapUiSmallMarginBottom"
+              wrap="Wrap"
+            >
+              <!-- BOTONES -->
+              <HBox
+                class="sapUiSmallMarginEnd"
+                alignItems="Inherit"
+                wrap="Wrap"
+              >
+                <Button
+                  id="btnCreate"
+                  type="Accept"
+                  text="Crear"
+                  press="onCreatePress"
+                  class="sapUiTinyMarginEnd sapUiTinyMarginBottom"
+                  icon="sap-icon://add"
+                />
+                <Button
+                  id="btnEdit"
+                  text="Editar"
+                  press="onEditPress"
+                  class="sapUiTinyMarginEnd sapUiTinyMarginBottom"
+                  icon="sap-icon://edit"
+                />
+                <Button
+                  id="btnDelete"
+                  type="Reject"
+                  text="Eliminar"
+                  press="onDeletePress"
+                  class="sapUiTinyMarginEnd sapUiTinyMarginBottom"
+                  icon="sap-icon://delete"
+                />
+                <Button
+                  id="btnDeactivate"
+                  type="Critical"
+                  text="Desactivar"
+                  press="onDeactivePress"
+                  class="sapUiTinyMarginEnd sapUiTinyMarginBottom"
+                  icon="sap-icon://hide"
+                />
+                <Button
+                  id="btnActivate"
+                  type="Accept"
+                  text="Activar"
+                  press="onActivePress"
+                  class="sapUiTinyMarginEnd sapUiTinyMarginBottom"
+                  icon="sap-icon://show"
+                />
+                <Button
+                  id="btnRefresh"
+                  text="Refrescar"
+                  press="onRefreshPress"
+                  class="sapUiTinyMarginBottom"
+                  icon="sap-icon://refresh"
+                />
+              </HBox>
+              <!-- BUSCADOR -->
+              <HBox alignItems="Center" class="sapUiSmallMarginBegin">
+                <SearchField
+                  id="searchField"
+                  width="250px"
+                  search=".onSearch1"
+                  liveChange=".onSearch1"
+                  placeholder="Buscar..."
+                />
+                <!-- Filtros rápidos por estado -->
+                <SegmentedButton
+                  id="sbEstadoQuick"
+                  class="sapUiTinyMarginBegin"
+                  select=".onQuickFilter"
+                   width="250px"
+                >
+                <items>
+                  <SegmentedButtonItem key="ALL" text="Todos" />
+                  <SegmentedButtonItem key="ACT" text="Activos" />
+                  <SegmentedButtonItem key="INA" text="Inactivos" />
+                </items>
+                </SegmentedButton>
+                
+                <Button
+                  icon="sap-icon://filter"
+                  press=".onFilterPress2"
+                  tooltip="Filtros avanzados"
+                  class="sapUiTinyMarginBegin"
+                />
+              </HBox>
+            </HBox>
+            <!-- TABLA -->
+            <Table
+              id="tblGrupos"
+              inset="false"
+              items="{grupos>/items}"
+              mode="SingleSelectMaster"
+              includeItemInSelection="true"
+              selectionChange=".onSelectionChange"
+            >
+              <columns>
+                <Column width="12em">
+                  <Text text="Sociedad" />
+                </Column>
+                <Column
+                  minScreenWidth="Tablet"
+                  demandPopin="true"
+                >
+                  <Text text="Sucursal (CEDIS)" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="Etiqueta" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="Valor" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="Grupo Etiqueta" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="ID" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="Información adicional" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="Registro" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                >
+                  <Text text="Última modificación" />
+                </Column>
+                <Column
+                  minScreenWidth="Desktop"
+                  demandPopin="true"
+                  hAlign="Center"
+                >
+                  <Text text="Estado" />
+                </Column>
+              </columns>
+              <items>
+                <ColumnListItem
+                  vAlign="Middle"
+                  type="Active"
+                  press=".onRowPress"
+                >
+                  <cells>
+                    <Text text="{grupos>IDSOCIEDAD}" />
+                    <Text text="{grupos>IDCEDI}" />
+                    <Text text="{grupos>IDETIQUETA}" />
+                    <Text text="{grupos>IDVALOR}" />
+                    <Text text="{grupos>IDGRUPOET}" />
+                    <Text text="{grupos>ID}" />
+                    <Link
+                      text="{path: 'grupos>INFOAD', formatter: '.formatter.truncateInfoAd'}"
+                      press=".onInfoAdPress"
+                      tooltip="Ver información completa"
+                    />
+                    <Text text="{grupos>RegistroCompleto}" />
+                    <Text text="{grupos>ModificacionCompleta}" />
+                    <core:Icon
+                      src="{grupos>EstadoIcon}"
+                      color="{grupos>EstadoIconColor}"
+                      tooltip="{grupos>EstadoTxt}"
+                      class="sapUiSmallMargin"
+                    />
+                  </cells>
+                </ColumnListItem>
+              </items>
+              <!-- Mensaje sin datos -->
+              <noData>
+                <IllustratedMessage
+                  id="noDataIllustration"
+                  illustrationType="sapIllus-NoData"
+                  title="No hay datos disponibles"
+                  description="No se encontraron grupos. Crea uno nuevo para comenzar."
+                />
+              </noData>
+            </Table>
+            <!-- PAGINACIÓN PERSONALIZADA (FUERA DE LA TABLA) -->
+            <Toolbar>
+              <ToolbarSpacer />
+              <Button
+                id="btnPrevPage"
+                icon="sap-icon://navigation-left-arrow"
+                press=".onNavPage"
+                tooltip="Página anterior"
+              />
+              <Text
+                id="txtPageInfo"
+                class="sapUiTinyMarginBeginEnd"
+              />
+              <Button
+                id="btnNextPage"
+                icon="sap-icon://navigation-right-arrow"
+                press=".onNavPage"
+                tooltip="Página siguiente"
+              />
+              <ToolbarSpacer />
+            </Toolbar>
+          </VBox>
+        </ScrollContainer>
+      </tnt:mainContents>
+    </tnt:ToolPage>
+  </Page>
+</mvc:View>

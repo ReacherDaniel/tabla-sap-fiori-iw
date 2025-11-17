@@ -1,0 +1,100 @@
+{
+  "_version": "1.76.0",
+  "sap.app": {
+    "id": "com.itt.ztgruposet.frontendztgruposet",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "0.0.1"
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "resources": "resources.json",
+    "sourceTemplate": {
+      "id": "@sap/generator-fiori:basic",
+      "version": "1.19.3",
+      "toolsId": "552b3f77-6d12-4cfb-bacf-e24ed88d80a5"
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {
+      "icon": "",
+      "favIcon": "",
+      "phone": "",
+      "phone@2": "",
+      "tablet": "",
+      "tablet@2": ""
+    },
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "flexEnabled": true,
+    "dependencies": {
+      "minUI5Version": "1.142.0",
+      "libs": {
+        "sap.ui.core": {},
+        "sap.tnt": {},
+        "sap.m": {},
+        "sap.ui.layout": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "com.itt.ztgruposet.frontendztgruposet.i18n.i18n"
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "controlAggregation": "pages",
+        "controlId": "app",
+        "transition": "slide",
+        "type": "View",
+        "viewType": "XML",
+        "path": "com.itt.ztgruposet.frontendztgruposet.view",
+        "async": true,
+        "viewPath": "com.itt.ztgruposet.frontendztgruposet.view"
+      },
+      "routes": [
+        {
+          "name": "RouteZTGRUPOSET",
+          "pattern": ":?query:",
+          "target": [
+            "TargetZTGRUPOSET"
+          ]
+        }
+      ],
+      "targets": {
+        "TargetZTGRUPOSET": {
+          "id": "ZTGRUPOSET",
+          "name": "ZTGRUPOSET"
+        }
+      }
+    },
+    "rootView": {
+      "viewName": "com.itt.ztgruposet.frontendztgruposet.view.App",
+      "type": "XML",
+      "id": "App",
+      "async": true
+    }
+  }
+}

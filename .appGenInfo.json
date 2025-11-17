@@ -1,0 +1,24 @@
+{
+  "generationParameters": {
+    "generationDate": "Sun Nov 02 2025 11:58:07 GMT-0700 (Mexican Pacific Standard Time)",
+    "generatorPlatform": "Visual Studio Code",
+    "serviceType": "None",
+    "metadataFilename": "",
+    "serviceUrl": "N/A",
+    "appName": "frontend_ztgruposet",
+    "appTitle": "Proyecto final",
+    "appDescription": "An SAP Fiori application.",
+    "appNamespace": "com.itt.ztgruposet",
+    "ui5Theme": "sap_horizon",
+    "ui5Version": "1.142.0",
+    "enableCodeAssist": false,
+    "enableEslint": false,
+    "enableTypeScript": false,
+    "showMockDataInfo": false,
+    "generatorVersion": "1.19.3",
+    "template": "Basic",
+    "generatorName": "SAP Fiori Application Generator",
+    "entityRelatedConfig": [],
+    "launchText": "To launch the generated application, run the following from the generated application root folder:\n\n```\n    npm start\n```"
+  }
+}

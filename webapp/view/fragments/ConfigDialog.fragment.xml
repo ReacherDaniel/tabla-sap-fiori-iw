@@ -1,0 +1,25 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+>
+    <Dialog id="configDialog" title="Configuración de Servidor">
+        <content>
+            <VBox class="sapUiSmallMargin" alignItems="Center">
+                <HBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
+                    <Label
+                        text="{= ${dbServerSwitch>/state} ? 'Azure Cosmos' : 'MongoDB' }"
+                        class="sapUiSmallMarginEnd"
+                        width="120px"
+                        textAlign="End"
+                    />
+                    <Switch id="dbServerSwitch" state="false" change="onDbServerChange" />
+                </HBox>
+            </VBox>
+        </content>
+        <!-- Se elimina el beginButton para tener solo una acción -->
+        <endButton>
+            <!-- El press="onCancelConfig" ya cierra el diálogo, solo cambiamos el texto -->
+            <Button text="Cerrar" press="onCancelConfig" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

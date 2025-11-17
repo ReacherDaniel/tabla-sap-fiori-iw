@@ -1,0 +1,44 @@
+<core:FragmentDefinition
+	xmlns="sap.m"
+	xmlns:core="sap.ui.core"
+	xmlns:form="sap.ui.layout.form">
+	<Dialog
+		id="filterDialog"
+		title="Filtrar y Ordenar"
+		contentWidth="400px">
+		<content>
+			<VBox class="sapUiSmallMargin">
+				<Label text="Buscar en los campos:" design="Bold" class="sapUiSmallMarginBottom" />
+				<RadioButtonGroup id="searchFieldGroup" columns="2" select="onFilterFieldSelect" />
+
+				<Label text="Ordenar por:" design="Bold" class="sapUiSmallMarginTop sapUiSmallMarginBottom" />
+				<Select
+					selectedKey="{filter>/sort/selectedField}"
+					width="100%"
+					items="{filter>/sort/fields}">
+					<core:Item key="{filter>key}" text="{filter>text}" />
+				</Select>
+
+				<Label text="Dirección:" design="Bold" class="sapUiSmallMarginTop sapUiSmallMarginBottom" />
+				<SegmentedButton selectedKey="{filter>/sort/direction}" width="100%">
+					<items>
+						<SegmentedButtonItem icon="sap-icon://sort-ascending" key="ASC" text="Ascendente" />
+						<SegmentedButtonItem icon="sap-icon://sort-descending" key="DESC" text="Descendente" />
+					</items>
+				</SegmentedButton>
+			</VBox>
+		</content>
+		<beginButton>
+			<Button text="Aplicar" type="Emphasized" press="onApplyFilters" />
+		</beginButton>
+		<endButton>
+			<Button text="Cancelar" press="onCancelFilters" />
+		</endButton>
+		<subHeader>
+			<Toolbar>
+				<ToolbarSpacer />
+				<Button text="Resetear" press="onResetFilters" icon="sap-icon://clear-filter" />
+			</Toolbar>
+		</subHeader>
+	</Dialog>
+</core:FragmentDefinition>

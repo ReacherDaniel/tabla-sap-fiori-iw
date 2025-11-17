@@ -1,0 +1,43 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+  <Dialog id="grupoEtDialog" title="Definir Grupo ET" stretchOnPhone="true">
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Label text="Grupo ET - Etiqueta" />
+        <!-- Reusa el /etiquetas (ya filtrado por Soc/Cedi) -->
+        <ComboBox
+        id="grpEtEtiqueta"
+        items="{cascadeModel>/etiquetas}"
+        selectedKey="{grupoEtModel>/selectedEtiqueta}"
+        selectionChange=".onGrupoEtiquetaChange"
+        placeholder="Selecciona una Etiqueta">
+        <core:Item key="{cascadeModel>key}" text="{cascadeModel>key}" />
+      </ComboBox>
+
+        <Label text="Grupo ET - Valor" class="sapUiMediumMarginTop"/>
+        <!-- Valores para la etiqueta seleccionada, cargados en grupoEtModel>/valoresList -->
+        <ComboBox
+        id="grpEtValor"
+        items="{grupoEtModel>/valoresList}"
+        selectedKey="{grupoEtModel>/selectedValor}"
+        selectionChange=".onGrupoValorChange"
+        enabled="{= !!${grupoEtModel>/selectedEtiqueta} }"
+        placeholder="Selecciona un Valor">
+        <core:Item key="{grupoEtModel>key}" text="{grupoEtModel>text}" />
+      </ComboBox>
+
+
+
+
+        <Label text="Resultado (Etiqueta-Valor)" class="sapUiMediumMarginTop"/>
+        <Input value="{grupoEtModel>/displayName}" editable="false" width="100%"/>
+      </VBox>
+    </content>
+
+    <beginButton>
+      <Button text="Aceptar" type="Emphasized" press=".onApplyGrupoEt" />
+    </beginButton>
+    <endButton>
+      <Button text="Cancelar" press=".onCancelGrupoEt" />
+    </endButton>
+  </Dialog>
+</core:FragmentDefinition>

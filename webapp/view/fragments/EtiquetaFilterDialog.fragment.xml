@@ -1,0 +1,53 @@
+<core:FragmentDefinition
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    xmlns:l="sap.ui.layout"
+>
+    <Dialog id="etiquetaFilterDialog" title="Filtrar Etiquetas">
+        <content>
+            <VBox class="sapUiSmallMargin">
+                
+                <!-- Filtro de Fecha (tu idea) -->
+                <Label text="Fecha de última modificación" class="sapUiTinyMarginTop"/>
+                <ComboBox
+                    selectedKey="{etiquetaFilterModel>/selectedDateRange}"
+                    selectionChange=".onFechaSelectionChange">
+                    <items>
+                        <core:Item key="ALL" text="Todos" />
+                        <core:Item key="1" text="Último mes" />
+                        <core:Item key="3" text="Últimos 3 meses" />
+                        <core:Item key="9" text="Últimos 9 meses" />
+                        <core:Item key="12" text="Últimos 12 meses" />
+                    </items>
+                </ComboBox>
+
+                <!-- Filtro de Colección (basado en el JSON) -->
+                <Label text="Colección" class="sapUiMediumMarginTop"/>
+                <List
+                    id="coleccionFilterList"
+                    mode="MultiSelect"
+                    items="{etiquetaFilterModel>/colecciones}"
+                >
+                    <StandardListItem title="{etiquetaFilterModel>text}" />
+                </List>
+
+                <!-- Filtro de Sección (basado en el JSON) -->
+                <Label text="Sección" class="sapUiMediumMarginTop"/>
+                <List
+                    id="seccionFilterList"
+                    mode="MultiSelect"
+                    items="{etiquetaFilterModel>/secciones}"
+                >
+                    <StandardListItem title="{etiquetaFilterModel>text}" />
+                </List>
+
+            </VBox>
+        </content>
+        <beginButton>
+            <Button text="Aplicar Filtros" type="Emphasized" press="onApplyEtiquetaFilters" />
+        </beginButton>
+        <endButton>
+            <Button text="Cancelar" press="onCancelEtiquetaFilters" />
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

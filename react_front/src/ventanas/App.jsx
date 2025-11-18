@@ -33,6 +33,7 @@ import {
   TableSelectionSingle,
   Icon
 } from "@ui5/webcomponents-react";
+import ModalCrear from "../components/ModalCrear";
 import "@ui5/webcomponents-icons/dist/menu.js";
 import "@ui5/webcomponents-icons/dist/home.js";
 import "@ui5/webcomponents-icons/dist/settings.js";
@@ -40,6 +41,7 @@ import "@ui5/webcomponents-icons/dist/database.js";
 // Importacion de iconos
 import "@ui5/webcomponents-icons/dist/accept.js";
 import "@ui5/webcomponents-icons/dist/decline.js";
+
 const URL_BASE = "https://app-restful-sap-cds.onrender.com"; // http://localhost:4004
 
 export default function App() {
@@ -56,15 +58,6 @@ export default function App() {
   const [dbConnection, setDbConnection] = useState("MongoDB");
   const [dbPost, setDbPost] = useState("MongoDB");
 
-  // 🆕 Estados para el formulario del modal
-  const [sociedad, setSociedad] = useState("");
-  const [sucursal, setSucursal] = useState("");
-  const [etiqueta, setEtiqueta] = useState("");
-  const [idValor, setIdValor] = useState("");
-  const [idGroupEt, setidGroupEt] = useState("");
-  const [id, setid] = useState("");
-  const [infoAdicional, setInfoAdicional] = useState("");
-
   // --- Cambio de conexión ---
   const handleSwitchChange = () => {
     setDbConnection(dbConnection === "MongoDB" ? "Azure" : "MongoDB");
@@ -73,41 +66,42 @@ export default function App() {
     setDbPost(dbPost === "MongoDB" ? "Azure" : "MongoDB");
   };
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.post(
+        `${URL_BASE}/api/security/gruposet/crud?ProcessType=GetAll&DBServer=${dbConnection}`,
+        {}
+      );
+
+      //console.log("SERVER RESPONSE ==============> ",res.data?.data?.[0]?.dataRes);
+
+      const records =
+        res.data?.data?.[0]?.dataRes?.map((item) => ({
+          sociedad: item.IDSOCIEDAD,
+          sucursal: item.IDCEDI,
+          etiqueta: item.IDETIQUETA,
+          valor: item.IDVALOR,
+          idgroup: item.IDGRUPOET,
+          idg: item.ID,
+          info: item.INFOAD,
+          registro: `${item.FECHAREG} ${item.HORAREG} (${item.USUARIOREG})`,
+          ultMod: !item.FECHAULTMOD ? "Sin modificaciones" : `${item.FECHAULTMOD} ${item.HORAULTMOD} (${item.USUARIOMOD})`,
+          estado: item.ACTIVO,
+        })) || [];
+
+      //console.log("Datos obtenidos:", records);
+
+      setData(records);
+    } catch (error) {
+      console.error("Error al obtener datos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Cargar datos del backend
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.post(
-          `${URL_BASE}/api/security/gruposet/crud?ProcessType=GetAll&DBServer=${dbConnection}`,
-          {}
-        );
-
-        // console.log("SERVER RESPONSE ==============> ",res.data?.data?.[0]?.dataRes);
-
-        const records =
-          res.data?.data?.[0]?.dataRes?.map((item) => ({
-            sociedad: item.IDSOCIEDAD,
-            sucursal: item.IDCEDI,
-            etiqueta: item.IDETIQUETA,
-            valor: item.IDVALOR,
-            idgroup: item.IDGRUPOET,
-            idg: item.ID,
-            info: item.INFOAD,
-            registro: `${item.FECHAREG} ${item.HORAREG} (${item.USUARIOREG})`,
-            ultMod:  !item.FECHAULTMOD ? "Sin modificaciones" : `${item.FECHAULTMOD} ${item.HORAULTMOD} (${item.USUARIOMOD})`,
-            estado: item.ACTIVO,
-          })) || [];
-
-        console.log("Datos obtenidos:", records);
-
-        setData(records);
-      } catch (error) {
-        console.error("Error al obtener datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchData();
   }, [dbConnection]);
@@ -125,82 +119,7 @@ export default function App() {
     { Header: "Estado", accessor: "estado" },
   ];
 
-  const handleCrearClick = () => {
-    setIsEditing(false);
-    setSociedad("");
-    setSucursal("");
-    setEtiqueta("");
-    setIdValor("");
-    setInfoAdicional("");
-    setidGroupEt("");
-    setid("");
-    setIsModalOpen(true);
-  };
-  const handleCloseModal = () => setIsModalOpen(false);
-  const handleGuardar = async () => {
-    try {
-      const registro = {
-        IDSOCIEDAD: Number(sociedad),
-        IDCEDI: Number(sucursal),
-        IDETIQUETA: etiqueta,
-        IDVALOR: idValor,
-        INFOAD: infoAdicional,
-        IDGRUPOET: idGroupEt,
-        ID: id,
-        ACTIVO: true,
-      };
-
-      const processType = isEditing ? "UpdateOne" : "Create";
-      const url = `${URL_BASE}/api/security/gruposet/crud?ProcessType=${processType}&DBServer=${dbConnection}`;
-
-
-
-      console.log(`📤 Enviando ${processType} a:`, url);
-      console.log("📦 Datos:", registro);
-
-      const res = await axios.post(url, registro, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (res.data?.success || res.status === 200) {
-        alert(`✅ Registro ${isEditing ? "actualizado" : "creado"} correctamente`);
-
-        // Refrescar los datos después de guardar
-        const resFetch = await axios.post(
-          `${URL_BASE}/api/security/gruposet/crud?ProcessType=GetAll&DBServer=${dbConnection}`,
-          {}
-        );
-
-        const records =
-          resFetch.data?.data?.[0]?.dataRes?.map((item) => ({
-            sociedad: item.IDSOCIEDAD,
-            sucursal: item.IDCEDI,
-            etiqueta: item.IDETIQUETA,
-            valor: item.IDVALOR,
-            idgroup: item.IDGRUPOET,
-            idg: item.ID,
-            info: item.INFOAD,
-            fecha: item.FECHAREG,
-            hora: item.HORAREG,
-            estado: item.ACTIVO ? "Activo" : "Inactivo",
-          })) || [];
-        setData(records);
-      } else {
-        alert(`⚠️ Error al ${isEditing ? "actualizar" : "crear"} el registro`);
-      }
-
-      // Cerrar el modal y limpiar
-      setIsModalOpen(false);
-      setIsEditing(false);
-      setSelectedRow(null);
-    } catch (error) {
-      console.error("❌ Error al guardar:", error);
-      alert("Error al guardar el registro: " + error.message);
-    }
-  };
-
+  const cerrarModalCreacion = () => setIsModalOpen(false);
 
   const handleEditarClick = () => {
     if (!selectedRow) {
@@ -257,25 +176,7 @@ export default function App() {
       alert("✅ Registro activado correctamente");
 
       // 🔄 Refrescar la tabla
-      const res = await axios.post(
-        `${URL_BASE}/api/security/gruposet/crud?ProcessType=GetAll&DBServer=${dbConnection}`,
-        {}
-      );
-      const records =
-        res.data?.data?.[0]?.dataRes?.map((item) => ({
-          sociedad: item.IDSOCIEDAD,
-          sucursal: item.IDCEDI,
-          etiqueta: item.IDETIQUETA,
-          valor: item.IDVALOR,
-          idgroup: item.IDGRUPOET,
-          idg: item.ID,
-          info: item.INFOAD,
-          fecha: item.FECHAREG,
-          hora: item.HORAREG,
-          estado: item.ACTIVO ? "Activo" : "Inactivo",
-        })) || [];
-      setData(records);
-      setSelectedRow(null);
+      fetchData();
 
     } catch (err) {
       console.error("❌ Error al activar:", err);
@@ -302,24 +203,7 @@ export default function App() {
 
       alert("🟡 Registro desactivado");
       // 🔄 Refrescar tabla
-      const res = await axios.post(
-        `${URL_BASE}/api/security/gruposet/crud?ProcessType=GetAll&DBServer=${dbConnection}`,
-        {}
-      );
-      const records =
-        res.data?.data?.[0]?.dataRes?.map((item) => ({
-          sociedad: item.IDSOCIEDAD,
-          sucursal: item.IDCEDI,
-          etiqueta: item.IDETIQUETA,
-          valor: item.IDVALOR,
-          idgroup: item.IDGRUPOET,
-          idg: item.ID,
-          info: item.INFOAD,
-          fecha: item.FECHAREG,
-          hora: item.HORAREG,
-          estado: item.ACTIVO ? "Activo" : "Inactivo",
-        })) || [];
-      setData(records);
+      fetchData();
 
     } catch (err) {
       console.error("Error al desactivar:", err);
@@ -345,31 +229,25 @@ export default function App() {
 
       alert("🟡 Registro elimina");
       // 🔄 Refrescar tabla
-      const res = await axios.post(
-        `${URL_BASE}/api/security/gruposet/crud?ProcessType=GetAll&DBServer=${dbConnection}`,
-        {}
-      );
-      const records =
-        res.data?.data?.[0]?.dataRes?.map((item) => ({
-          sociedad: item.IDSOCIEDAD,
-          sucursal: item.IDCEDI,
-          etiqueta: item.IDETIQUETA,
-          valor: item.IDVALOR,
-          idgroup: item.IDGRUPOET,
-          idg: item.ID,
-          info: item.INFOAD,
-          fecha: item.FECHAREG,
-          hora: item.HORAREG,
-          estado: item.ACTIVO ? "Activo" : "Inactivo",
-        })) || [];
-      setData(records);
+      fetchData();
 
     } catch (err) {
       console.error("Error al eliminar :", err);
       alert("❌ No se pudo eliminar el registro");
     }
   };
-  console.log("Registros cargados:", data.length, data);
+
+  //console.log("Registros cargados:", data.length, data);
+
+  const handleRowClick = (row) => {
+    // Si la fila clickeada es la misma que ya está seleccionada, deseleccionar
+    if (selectedRow === row) {
+      setSelectedRow(null);
+    } else {
+      // Si no, seleccionar la nueva fila
+      setSelectedRow(row);
+    }
+  };
 
   return (
     <>
@@ -427,19 +305,43 @@ export default function App() {
         <h2 className="titulo">Grupos y subgrupos de SKU</h2>
 
         <div className="barra-controles">
-          <Button className="btn-crear" icon="add" onClick={handleCrearClick}>
+          <Button
+            className="btn-crear"
+            icon="add"
+            onClick={() => setIsModalOpen(true)}
+          >
             Crear
           </Button>
-          <Button className="btn-editar" icon="edit" onClick={handleEditarClick}>
+          <Button
+            className="btn-editar"
+            icon="edit"
+            onClick={handleEditarClick}
+            disabled={!selectedRow}
+          >
             Editar
           </Button>
-          <Button className="btn-eliminar" icon="delete" onClick={handleEliminarClick}>
+          <Button
+            className="btn-eliminar"
+            icon="delete"
+            onClick={handleEliminarClick}
+            disabled={!selectedRow}
+          >
             Eliminar
           </Button>
-          <Button className="btn-desactivar" icon="decline" onClick={handleDesactivar}>
+          <Button
+            className="btn-desactivar"
+            icon="decline"
+            onClick={handleDesactivar}
+            disabled={!selectedRow || !selectedRow.estado}
+          >
             Desactivar
           </Button>
-          <Button className="btn-activar" icon="accept" onClick={handleActivar}>
+          <Button
+            className="btn-activar"
+            icon="accept"
+            onClick={handleActivar}
+            disabled={!selectedRow || selectedRow.estado}
+          >
             Activar
           </Button>
           <div className="search-bar">
@@ -455,35 +357,6 @@ export default function App() {
           {loading ? (
             <p className="loading-msg">Cargando datos...</p>
           ) : data.length > 0 ? (
-            // <AnalyticalTable
-            //   data={data}
-            //   columns={columns}
-            //   className="ui5-table-root"
-            //   style={{
-            //     width: "100%",
-            //     height: "auto",
-            //     backgroundColor: "#1e1e1e",
-            //     color: "white",
-            //     borderRadius: "8px",
-            //     maxHeight: "600px",
-            //     overflowY: "auto",
-            //   }}
-            //   onRowClick={(ev) => {
-            //     const r = ev?.row?.original ?? ev?.detail?.row?.original ?? null;
-            //     if (r) setSelectedRow(r);
-            //   }}
-            //   reactTableOptions={{
-            //     getRowProps: (row) => ({
-            //       style: row?.original?.borrado
-            //         ? {
-            //           opacity: 0.45,
-            //           filter: "grayscale(20%)",
-            //           backgroundColor: "#282828"
-            //         }
-            //         : {}
-            //     })
-            //   }}
-            // />
             <Table
               headerRow={
                 <TableHeaderRow sticky>
@@ -492,9 +365,17 @@ export default function App() {
                   ))}
                 </TableHeaderRow>
               }
+              onRowClick={(ev) => {
+                const r = ev?.row?.original ?? ev?.detail?.row?.original ?? null;
+                if (r) setSelectedRow(r);
+              }}
             >
               {data.map((row, index) => (
-                <TableRow key={index}>
+                <TableRow
+                  key={index}
+                  selected={selectedRow === row}
+                  onClick={() => handleRowClick(row)}
+                >
                   <TableCell>
                     <span>{row.sociedad}</span>
                   </TableCell>
@@ -547,146 +428,12 @@ export default function App() {
       </div>
 
       {/* Modal */}
-      <Dialog
-        open={isModalOpen}
-        onAfterClose={handleCloseModal}
-        headerText="Agregar/Editar SKU"
-        footer={
-          <Bar
-            endContent={
-              <>
-                <Button design="Transparent" onClick={handleCloseModal}>
-                  Cancelar
-                </Button>
-                <Button
-                  design="Emphasized"
-                  icon="add"
-                  onClick={handleGuardar}
-                  className="btn-guardar-modal"
-                >
-                  Guardar
-                </Button>
-              </>
-            }
-          />
-        }
-        className="modal-sku"
-      >
-        <div className="modal-content">
-          <FlexBox
-            direction="Row"
-            justifyContent="Start"
-            wrap="Wrap"
-            className="modal-form-fields"
-          >
-            <div className="modal-field">
-              <Label required>Sociedad</Label>
-              <ComboBox
-                className="modal-combobox"
-                onChange={(e) => {
-                  const value = e.detail?.item?.text || e.target.value;
-                  setSociedad(value);
-                }}
-                value={sociedad}
-              >
-                <ComboBoxItem text="111" />
-                <ComboBoxItem text="222" />
-                <ComboBoxItem text="333" />
-              </ComboBox>
-            </div>
-
-            <div className="modal-field">
-              <Label required>Sucursal (CEDIS)</Label>
-              <ComboBox
-                className="modal-combobox"
-                onChange={(e) => {
-                  const value = e.detail?.item?.text || e.target.value;
-                  setSucursal(value);
-                }}
-                value={sucursal}
-              >
-                <ComboBoxItem text="100" />
-                <ComboBoxItem text="101" />
-                <ComboBoxItem text="102" />
-              </ComboBox>
-            </div>
-
-            <div className="modal-field">
-              <Label required>Etiqueta</Label>
-              <ComboBox
-                className="modal-combobox"
-                onChange={(e) => {
-                  const value = e.detail?.item?.text || e.target.value;
-                  setEtiqueta(value);
-                }}
-                value={etiqueta}
-              >
-                <ComboBoxItem text="Filtro1" />
-                <ComboBoxItem text="Filtro2" />
-              </ComboBox>
-            </div>
-
-            <div className="modal-field">
-              <Label required>IDValor</Label>
-              <ComboBox
-                className="modal-combobox"
-                onChange={(e) => {
-                  const value = e.detail?.item?.text || e.target.value;
-                  setIdValor(value);
-                }}
-                value={idValor}
-              >
-                <ComboBoxItem text="idValor_01" />
-                <ComboBoxItem text="idValor_02" />
-                <ComboBoxItem text="idValor_03" />
-              </ComboBox>
-            </div>
-            <div className="modal-field">
-              <Label required>IDGROUPET</Label>
-              <ComboBox
-                className="modal-combobox"
-                onChange={(e) => {
-                  const value = e.detail?.item?.text || e.target.value;
-                  setidGroupEt(value);
-                }}
-                value={idGroupEt}
-              >
-                <ComboBoxItem text="Grupo01" />
-                <ComboBoxItem text="Grupo03" />
-                <ComboBoxItem text="Grupo02" />
-              </ComboBox>
-            </div>
-            <div className="modal-field">
-              <Label required>ID</Label>
-              <Input
-                className="modal-input"
-                value={id}
-                placeholder="id grupo"
-                onChange={(e) => setid(e.target.value)}
-              />
-            </div>
-            <div className="switch_etiqueta">
-              <Label>{dbPost}</Label>
-              <Switch
-                textOn="Cosmos "
-                textOff="MongoDB"
-                checked={dbPost === "Azure Cosmos"}
-                onChange={CambioDbPost}
-              />
-            </div>
-          </FlexBox>
-
-          <div className="modal-textarea-container">
-            <Label>Información adicional</Label>
-            <TextArea
-              placeholder="Escriba información adicional..."
-              className="modal-textarea"
-              onChange={(e) => setInfoAdicional(e.target.value)}
-              value={infoAdicional}
-            />
-          </div>
-        </div>
-      </Dialog>
+      <ModalCrear
+        isModalOpen={isModalOpen}
+        handleCloseModal={cerrarModalCreacion}
+        dbConnection={dbConnection}
+        refetchData={fetchData}
+      />
 
       {/* 🔹 Ventana de configuración (nueva) */}
       {showConfig && (

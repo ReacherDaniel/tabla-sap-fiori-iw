@@ -14,41 +14,46 @@
   padding: 1rem;
   background-color: #1b1b1b;
   color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Centra todo el contenido */
 }
 
 /* Contenedor de los campos del formulario */
 .modal-form-fields {
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Centra los campos */
 }
 
 /* Cada campo individual */
 .modal-field {
   display: flex;
   flex-direction: column;
+  width: 400px;
+  /* Mismo ancho para todos los campos */
+  align-items: flex-start;
+  /* Labels e inputs alineados a la izquierda dentro del contenedor centrado */
 }
 
 /* ComboBox estándar */
-.modal-combobox {
-  width: 200px;
+.modal-combobox,
+.modal-input,
+.modal-textarea {
+  width: 100% !important;
+  /* Ocupa el 100% del modal-field */
   margin-top: 0.5rem;
-}
-
-/* ComboBox más ancho (para Grupo Etiqueta) */
-.modal-combobox-wide {
-  width: 220px;
-}
-
-/* Contenedor del textarea */
-.modal-textarea-container {
-  margin-top: 1rem;
 }
 
 /* Textarea de información adicional */
 .modal-textarea {
-  width: 100%;
   min-height: 100px;
-  margin-top: 0.5rem;
+  resize: vertical;
 }
 
 /* Botón Guardar con estilo verde */
@@ -59,11 +64,12 @@
 }
 
 /* Estilos para las etiquetas (Labels) */
-.modal-field label,
-.modal-textarea-container label {
+.modal-field ui5-label {
   font-weight: 500;
   margin-bottom: 0.25rem;
   color: white;
+  width: 100%;
+  text-align: left;
 }
 
 /* ============================================
@@ -74,16 +80,16 @@
   .modal-sku {
     width: 95vw;
   }
-  
-  .modal-combobox,
-  .modal-combobox-wide {
-    width: 100%;
+
+  .modal-field {
+    width: 90vw;
+    /* En móvil ocupa casi todo el ancho */
   }
-  
+
   .modal-form-fields {
     gap: 1rem;
   }
-  
+
   .modal-content {
     padding: 0.75rem;
   }
@@ -92,11 +98,43 @@
 /* ============================================
    Diseño Switch
    ============================================ */
-   .switch_etiqueta{
-    display: grid;
+.switch_etiqueta {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 10px;
-   }
-   label, switch{
-    flex: 1 1 100px;
-   }
+}
+
+label,
+switch {
+  flex: 1 1 100px;
+}
+
+/* Contenedor para Grupo ET con botón */
+.grupo-et-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 400px;
+  /* Mismo ancho que los demás campos */
+  margin-top: 0.5rem;
+}
+
+/* Botón de editar */
+.btn-editar-grupo {
+  flex-shrink: 0;
+  /* Evita que el botón se reduzca */
+  background-color: transparent;
+  border: 1px solid #0070f0;
+  color: #0070f0;
+}
+
+.btn-editar-grupo:hover {
+  background-color: #0070f0;
+  color: white;
+}
+
+/* Asegurar que el ComboBox ocupe el espacio disponible */
+.grupo-et-container ui5-combobox {
+  flex: 1;
+  /* Ocupa todo el espacio disponible */
+}

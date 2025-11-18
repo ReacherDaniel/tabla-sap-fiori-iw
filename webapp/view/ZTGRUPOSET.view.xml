@@ -216,69 +216,48 @@
               selectionChange=".onSelectionChange"
               fixedLayout="Strict"
             >
+
               <dependents>
                 <plugins:ColumnResizer columnResize=".onColumnResize" />
               </dependents>
-              <columns>
-                <Column width="12em">
-                  <Text text="Sociedad" />
-                </Column>
-                <Column
-                  minScreenWidth="Tablet"
-                  demandPopin="true"
-                >
-                  <Text text="Sucursal (CEDIS)" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="Etiqueta" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="Valor" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="Grupo Etiqueta" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="ID" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="Información adicional" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="Registro" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                >
-                  <Text text="Última modificación" />
-                </Column>
-                <Column
-                  minScreenWidth="Desktop"
-                  demandPopin="true"
-                  hAlign="Center"
-                >
-                  <Text text="Estado" />
-                </Column>
-              </columns>
+
+               <columns>
+                  <!-- Columna para la flecha -->
+                  <Column width="3rem" hAlign="Center">
+                    <Text text=""/>
+                  </Column>
+
+                  <Column width="12em">
+                    <Text text="Sociedad" />
+                  </Column>
+                  <Column minScreenWidth="Tablet" demandPopin="true">
+                    <Text text="Sucursal (CEDIS)" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="Etiqueta" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="Valor" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="Grupo Etiqueta" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="ID" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="Información adicional"  />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="Registro" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true">
+                    <Text text="Última modificación" />
+                  </Column>
+                  <Column minScreenWidth="Desktop" demandPopin="true" hAlign="Center">
+                    <Text text="Estado" />
+                  </Column>
+                </columns>
               <items>
                 <ColumnListItem
                   vAlign="Middle"
@@ -286,6 +265,14 @@
                   press=".onRowPress"
                 >
                   <cells>
+                    <!-- 1) Flecha para abrir/cerrar la subfila -->
+                    <Button
+                      icon="sap-icon://slim-arrow-down"
+                      type="Transparent"
+                      press=".onToggleDetailRow"
+                    />
+
+                    <!-- 2) Resto de columnas “normales” (solo texto) -->
                     <Text text="{grupos>IDSOCIEDAD}" />
                     <Text text="{grupos>IDCEDI}" />
                     <Text text="{grupos>IDETIQUETA}" />
@@ -293,12 +280,11 @@
                     <Text text="{grupos>IDGRUPOET}" />
                     <Text text="{grupos>ID}" />
                     <Link
-                      text="{
-                        path: 'grupos>INFOAD',
-                        formatter: '.formatter.truncateInfoAd'
-                      }"
-                      press=".onInfoAdPress"
-                      tooltip="Ver información completa"
+                        text="{grupos>INFOAD}"
+                        wrapping="true"
+                        maxLines="3"
+                        width="100%"
+                        press=".onInfoAdPress"
                     />
                     <Text text="{grupos>RegistroCompleto}" />
                     <Text text="{grupos>ModificacionCompleta}" />

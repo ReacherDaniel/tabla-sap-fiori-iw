@@ -246,7 +246,7 @@
                     <Text text="ID" />
                   </Column>
                   <Column minScreenWidth="Desktop" demandPopin="true">
-                    <Text text="Información adicional" />
+                    <Text text="Información adicional"  />
                   </Column>
                   <Column minScreenWidth="Desktop" demandPopin="true">
                     <Text text="Registro" />
@@ -280,12 +280,11 @@
                     <Text text="{grupos>IDGRUPOET}" />
                     <Text text="{grupos>ID}" />
                     <Link
-                      text="{
-                        path: 'grupos>INFOAD',
-                        formatter: '.formatter.truncateInfoAd'
-                      }"
-                      press=".onInfoAdPress"
-                      tooltip="Ver información completa"
+                        text="{grupos>INFOAD}"
+                        wrapping="true"
+                        maxLines="3"
+                        width="100%"
+                        press=".onInfoAdPress"
                     />
                     <Text text="{grupos>RegistroCompleto}" />
                     <Text text="{grupos>ModificacionCompleta}" />

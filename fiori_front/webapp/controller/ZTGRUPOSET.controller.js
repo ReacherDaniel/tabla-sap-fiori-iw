@@ -1422,7 +1422,7 @@ sap.ui.define([
         aFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Inactivo"));
       }
 
-      // 🔴 AQUÍ es lo importante:
+      
       this._aDialogFilters = aFilters;   // guardamos solo aquí
       this._applyAllFilters();
 
@@ -1442,7 +1442,7 @@ sap.ui.define([
       oCore.byId(oView.createId("fRegDate")).setSecondDateValue(null);
       oCore.byId(oView.createId("fEstado")).setSelectedKey("ALL");
 
-      // 🔴 ESTE ES EL PASO CLAVE:
+    
       this._aDialogFilters = [];   // quitar completamente los filtros avanzados
 
       this._applyAllFilters();     // se quedan solo search + quick (si hay)
@@ -1913,8 +1913,8 @@ sap.ui.define([
     // Abre el diálogo (carga fragment con id prefijado, repuebla listas y abre)
     onOpenGrupoEtInline: function () {
       const oInline = this.getView().getModel("inlineEdit");
-      const sSoc  = oInline.getProperty("/current/IDSOCIEDAD"); // 👈 ANTES "/IDSOCIEDAD"
-      const sCedi = oInline.getProperty("/current/IDCEDI");     // 👈 ANTES "/IDCEDI"
+      const sSoc  = oInline.getProperty("/current/IDSOCIEDAD"); 
+      const sCedi = oInline.getProperty("/current/IDCEDI");     
 
       if (!sSoc || !sCedi) {
         sap.m.MessageToast.show("Selecciona primero Sociedad y CEDI.");
@@ -1994,7 +1994,7 @@ sap.ui.define([
     // Pre-cargar el modelo grupoEtModel a partir del inlineEdit
     _preloadGrupoEtForInline: function () {
       const oInline  = this.getView().getModel("inlineEdit");
-      const sGrupoEt = oInline.getProperty("/current/IDGRUPOET");  // 👈
+      const sGrupoEt = oInline.getProperty("/current/IDGRUPOET");  
 
       const oGM = this.getView().getModel("grupoEtModel");
 
@@ -2009,8 +2009,8 @@ sap.ui.define([
       const [sEtiId, sValId] = sGrupoEt.split("-");
 
       const oCascade = this.getView().getModel("cascadeModel");
-      const sSoc     = oInline.getProperty("/current/IDSOCIEDAD"); // 👈
-      const sCedi    = oInline.getProperty("/current/IDCEDI");     // 👈
+      const sSoc     = oInline.getProperty("/current/IDSOCIEDAD"); 
+      const sCedi    = oInline.getProperty("/current/IDCEDI");     
       const aValsAll = oCascade.getProperty("/valoresAll") || [];
 
       const aFilteredVals = aValsAll.filter(v =>
@@ -2065,7 +2065,7 @@ sap.ui.define([
         oUpdate.setProperty("/IDGRUPOET",        sGrupoEt);
 
       } else if (this._grupoEtEditMode === "inline") {
-        // 🔴 aquí guardamos en el borrador de la fila
+        // aquí guardamos en el borrador de la fila
         const oInline = this.getView().getModel("inlineEdit");
         oInline.setProperty("/current/GRP_ET_IDETIQUETA", sEtiId); 
         oInline.setProperty("/current/GRP_ET_IDVALOR",   sValId);  

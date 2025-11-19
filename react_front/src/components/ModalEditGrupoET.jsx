@@ -30,8 +30,8 @@ const ModalEditGrupoET = ({ isModalOpen, handleCloseModal, setGrupoET, etiquetas
     useEffect(() => {
         if (isModalOpen && sociedadSeleccionada && cediSeleccionado) {
             const etiquetasFiltradas = etiquetas.filter(et =>
-                et.IDSOCIEDAD?.toString() === sociedadSeleccionada &&
-                et.IDCEDI?.toString() === cediSeleccionado
+                et.IDSOCIEDAD?.toString() === sociedadSeleccionada.toString() &&
+                et.IDCEDI?.toString() === cediSeleccionado.toString()
             );
             setFilteredEtiquetas(etiquetasFiltradas);
         } else {

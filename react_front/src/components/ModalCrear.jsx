@@ -15,7 +15,7 @@ import {
 import ModalEditGrupoET from "./ModalEditGrupoET.jsx";
 
 // Constantes para consultar el backend del equipo de miguellopez corriendo en localhost
-const URL_BASE_BACKEND_MIGUEL = "http://localhost:3034/api/cat/crudLabelsValues";
+const URL_BASE_BACKEND_MIGUEL = "http://localhost:3034";
 
 const URL_BASE_BACKEND_CINNALOVERS = "https://app-restful-sap-cds.onrender.com";
 const LOGGED_USER = "FMIRADAJ";
@@ -53,7 +53,7 @@ const ModalCrear = ({ isModalOpen, handleCloseModal, dbConnection, refetchData }
         const fetchCatalogos = async () => {
             if (!isModalOpen) return;
             try {
-                const url = `${URL_BASE_BACKEND_MIGUEL}?ProcessType=GetAll&LoggedUser=MIGUELLOPEZ&DBServer=${dbConnection}`;
+                const url = `${URL_BASE_BACKEND_MIGUEL}/api/cat/crudLabelsValues?ProcessType=GetAll&LoggedUser=MIGUELLOPEZ&DBServer=${dbConnection === "Azure" ? "CosmosDB" : "MongoDB"}`;
                 const response = await fetch(url, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

@@ -24,7 +24,8 @@
           selectionChange=".onGrupoValorChange"
           placeholder="Selecciona un Valor">
           <!-- key = IDVALOR, text = nombre del valor -->
-          <core:Item key="{grupoEtModel>IDVALOR}" text="{grupoEtModel>VALOR}" />
+           <core:Item key="{grupoEtModel>IDVALOR}"
+               text="{grupoEtModel>VALOR}" />
         </ComboBox>
 
         <!-- Resultado -->

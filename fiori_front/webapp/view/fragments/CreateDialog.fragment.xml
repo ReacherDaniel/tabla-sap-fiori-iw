@@ -32,14 +32,16 @@
                     <HBox alignItems="Center">
                         
                         <ComboBox
-                            items="{cascadeModel>/etiquetas}"
+                             items="{cascadeModel>/etiquetas}"
                             selectedKey="{createModel>/IDETIQUETA}"
                             selectionChange=".onEtiquetaChange"
                             enabled="{= !!${createModel>/IDCEDI} }"
                             placeholder="Selecciona una Etiqueta"
-                            width="100%"
-                        >
-                            <core:Item key="{cascadeModel>key}" text="{cascadeModel>text}" />
+                            width="100%">
+                            <!-- Guarda el ID, muestra la descripción -->
+                            <core:Item
+                                 key="{cascadeModel>key}"
+                                 text="{cascadeModel>text}" />
                         </ComboBox>
 
                         <!-- Botón de filtros (solo icono y estilo, sin la funcionalidad previa) -->
@@ -54,11 +56,15 @@
 
                     <Label text="Valor" required="true" />
                     <ComboBox
-                    items="{cascadeModel>/valores}"
-                    selectedKey="{createModel>/IDVALOR}"
-                    enabled="{= !!${createModel>/IDETIQUETA} }"
-                    placeholder="Selecciona un Valor">
-                    <core:Item key="{cascadeModel>key}" text="{cascadeModel>key}" />
+                        items="{cascadeModel>/valores}"
+                        selectedKey="{createModel>/IDVALOR}"
+                        enabled="{= !!${createModel>/IDETIQUETA} }"
+                        placeholder="Selecciona un Valor"
+                        width="100%">
+                        <!-- Guarda IDVALOR, muestra VALOR -->
+                        <core:Item
+                           key="{cascadeModel>IDVALOR}"
+                           text="{cascadeModel>text}" /> 
                     </ComboBox>
 
                     <Label text="Grupo ET" />

@@ -40,7 +40,9 @@
                             placeholder="Selecciona una Etiqueta"
                             width="100%">
                             <!-- key = IDETIQUETA (ID real), text = ETIQUETA (nombre bonito) -->
-                            <core:Item key="{cascadeModel>IDETIQUETA}" text="{cascadeModel>ETIQUETA}" />
+                            <core:Item
+                                 key="{cascadeModel>key}"
+                                 text="{cascadeModel>text}" />
                         </ComboBox>
                         <Button
                             icon="sap-icon://filter"
@@ -57,7 +59,9 @@
                         selectedKey="{updateModel>/IDVALOR}"
                         enabled="{= !!${updateModel>/IDETIQUETA} }"
                         placeholder="Selecciona un Valor">
-                        <core:Item key="{cascadeModel>key}" text="{cascadeModel>key}" />
+                        <core:Item
+                           key="{cascadeModel>IDVALOR}"
+                           text="{cascadeModel>text}" /> 
                     </ComboBox>
 
                     <!-- GRUPO ET -->

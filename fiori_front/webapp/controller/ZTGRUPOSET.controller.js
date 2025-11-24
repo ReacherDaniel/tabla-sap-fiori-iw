@@ -173,34 +173,80 @@ sap.ui.define([
 
         // Los registros vienen en data[0].dataRes
         const items = (((json || {}).data || [])[0] || {}).dataRes || [];
+        // Traer catálogo de etiquetas para obtener el texto descriptivo
+        const oCascadeModel  = this.getView().getModel("cascadeModel");
+        const aEtiquetasAll  = (oCascadeModel && oCascadeModel.getProperty("/etiquetasAll")) || [];
+        const aValoresAll   = (oCascadeModel && oCascadeModel.getProperty("/valoresAll")) || [];
 
         // Normaliza/deriva campos útiles para la UI
-        const normalized = items.map(x => ({
-          _id: x._id,
-          IDSOCIEDAD: x.IDSOCIEDAD,
-          IDCEDI: x.IDCEDI,
-          IDETIQUETA: x.IDETIQUETA,
-          IDVALOR: x.IDVALOR,
-          IDGRUPOET: x.IDGRUPOET,
-          ID: x.ID,
-          INFOAD: x.INFOAD,
-          FECHAREG: x.FECHAREG,
-          HORAREG: x.HORAREG,
-          USUARIOREG: x.USUARIOREG,
-          FECHAULTMOD: x.FECHAULTMOD,
-          HORAULTMOD: x.HORAULTMOD,
-          USUARIOMOD: x.USUARIOMOD,
-          ACTIVO: x.ACTIVO,
-          BORRADO: x.BORRADO,
-          EstadoTxt: x.ACTIVO ? "ACTIVO" : "INACTIVO",
-          EstadoUI5: x.ACTIVO ? "Success" : "Error",
-          EstadoIcon: x.ACTIVO ? "sap-icon://sys-enter-2" : "sap-icon://status-negative",
-          EstadoIconColor: x.ACTIVO ? "Positive" : "Negative",
-          RegistroCompleto: `${x.FECHAREG || ''} ${x.HORAREG || ''} (${x.USUARIOREG || 'N/A'})`,
-          ModificacionCompleta: x.FECHAULTMOD ? `${x.FECHAULTMOD} ${x.HORAULTMOD} (${x.USUARIOMOD || 'N/A'})` : 'Sin modificaciones'
-        }));
+        const normalized = items.map(x => {
 
-        // 🔹 Guardamos todo tal cual viene del backend
+          // 🔍 Buscar en el catálogo la etiqueta correspondiente
+          const oMatch = aEtiquetasAll.find(e =>
+            String(e.IDSOCIEDAD) === String(x.IDSOCIEDAD) &&
+            String(e.IDCEDI)     === String(x.IDCEDI) &&
+            String(e.IDETIQUETA) === String(x.IDETIQUETA)
+          );
+
+          // 🔍 Buscar VALOR correspondiente en valoresAll
+          const oValorMatch = aValoresAll.find(v =>
+            String(v.IDSOCIEDAD)     === String(x.IDSOCIEDAD) &&
+            String(v.IDCEDI)         === String(x.IDCEDI) &&
+            String(v.parentEtiqueta) === String(x.IDETIQUETA) &&
+            String(v.IDVALOR)        === String(x.IDVALOR)
+          );
+
+
+          // Texto que queremos mostrar en la tabla
+          // Texto amigable SOLO con ALIAS
+          const sEtiquetaTxt =
+            (oMatch && oMatch.ALIAS) ||  // alias desde el catálogo “maestro”
+            x.ALIAS ||                   // alias que venga en el propio item (por si acaso)
+            x.IDETIQUETA;                // último fallback para no dejarlo vacío
+
+            // Texto amigable del valor (ALIAS > VALOR > IDVALOR)
+          const sValorTxt =
+            (oValorMatch && oValorMatch.ALIAS && oValorMatch.ALIAS.trim()) ||
+            (oValorMatch && oValorMatch.VALOR && oValorMatch.VALOR.trim()) ||
+            x.IDVALOR;
+
+          return {
+            _id: x._id,
+            IDSOCIEDAD: String(x.IDSOCIEDAD ?? ""),
+            IDCEDI: String(x.IDCEDI ?? ""),
+
+            // ID real
+            IDETIQUETA: x.IDETIQUETA,
+
+            // texto amigable para la tabla
+            ETIQUETA_TXT: sEtiquetaTxt,
+            VALOR_TXT:    sValorTxt,
+             // MUY IMPORTANTE para el ComboBox:
+            text: sEtiquetaTxt,
+            key:  x.IDETIQUETA,        // y key="{key}"
+
+            IDVALOR: String(x.IDVALOR ?? ""),
+            IDGRUPOET: String(x.IDGRUPOET ?? ""),
+            ID: String(x.ID ?? ""), 
+            INFOAD: x.INFOAD,
+            FECHAREG: x.FECHAREG,
+            HORAREG: x.HORAREG,
+            USUARIOREG: x.USUARIOREG,
+            FECHAULTMOD: x.FECHAULTMOD,
+            HORAULTMOD: x.HORAULTMOD,
+            USUARIOMOD: x.USUARIOMOD,
+            ACTIVO: x.ACTIVO,
+            BORRADO: x.BORRADO,
+            EstadoTxt: x.ACTIVO ? "Activo" : "Inactivo",
+            EstadoUI5: x.ACTIVO ? "Success" : "Error",
+            EstadoIcon: x.ACTIVO ? "sap-icon://sys-enter-2" : "sap-icon://status-negative",
+            EstadoIconColor: x.ACTIVO ? "Positive" : "Negative",
+            RegistroCompleto: `${x.FECHAREG || ''} ${x.HORAREG || ''} (${x.USUARIOREG || 'N/A'})`,
+            ModificacionCompleta: x.FECHAULTMOD ? `${x.FECHAULTMOD} ${x.HORAULTMOD} (${x.USUARIOMOD || 'N/A'})` : 'Sin modificaciones'
+          };
+        });
+
+        // Guardamos todo tal cual viene del backend
         this._aAllItems = normalized;
         this._aFilteredItems = [...this._aAllItems];   // <- SIN ordenar aquí
 
@@ -250,42 +296,43 @@ sap.ui.define([
 
     //función de búsqueda ////////////////////////////////////////////////////////////////////////////////
 
+    // ==== LÓGICA DE FILTRADO Y BÚSQUEDA (quick search) ====
     onSearch1: function (oEvent) {
       var sQuery =
         oEvent.getParameter("newValue") ||
         oEvent.getParameter("query") ||
         oEvent.getSource().getValue();
 
-      var oTable = this.byId("tblGrupos");
-      var oBinding = oTable.getBinding("items");
+      this._aSearchFilters = [];
 
-      if (!sQuery) {
-        oBinding.filter([]);
-        return;
+      if (sQuery) {
+        var aFilters = [];
+
+        // 🔹 Si es número, seguimos usando búsqueda exacta en campos numéricos
+        if (!isNaN(sQuery)) {
+          var iQuery = parseInt(sQuery, 10);
+          aFilters.push(new Filter("IDSOCIEDAD", FilterOperator.EQ, iQuery));
+          aFilters.push(new Filter("IDCEDI", FilterOperator.EQ, iQuery));
+          aFilters.push(new Filter("ID", FilterOperator.EQ, iQuery)); // por si tienes IDs numéricos
+        }
+
+        // 🔹 Búsqueda parcial en campos de texto
+        aFilters.push(new Filter("ETIQUETA_TXT", FilterOperator.Contains, sQuery)); // etiqueta legible
+        aFilters.push(new Filter("VALOR_TXT",    FilterOperator.Contains, sQuery));
+        aFilters.push(new Filter("IDETIQUETA",   FilterOperator.Contains, sQuery));
+        aFilters.push(new Filter("IDVALOR",      FilterOperator.Contains, sQuery));
+        aFilters.push(new Filter("IDGRUPOET",    FilterOperator.Contains, sQuery));
+        aFilters.push(new Filter("INFOAD",       FilterOperator.Contains, sQuery));
+        aFilters.push(new Filter("EstadoTxt",    FilterOperator.Contains, sQuery));
+        aFilters.push(new Filter("ID",           FilterOperator.Contains, sQuery)); // 👈 AHORA TAMBIÉN ID
+
+        // OR entre todos esos campos
+        this._aSearchFilters = [
+          new Filter({ filters: aFilters, and: false })
+        ];
       }
 
-      var aFilters = [];
-
-      // 👉 Si lo que escribió puede ser número, filtramos numéricos con EQ
-      if (!isNaN(sQuery)) {
-        var iQuery = parseInt(sQuery, 10);
-
-        aFilters.push(new Filter("IDSOCIEDAD", FilterOperator.EQ, iQuery));
-        aFilters.push(new Filter("IDCEDI", FilterOperator.EQ, iQuery));
-        aFilters.push(new Filter("ID", FilterOperator.EQ, iQuery));
-      }
-
-      // 👉 Campos STRING con Contains (sin problema)
-      aFilters.push(new Filter("IDETIQUETA", FilterOperator.Contains, sQuery));
-
-
-      // OR entre todos los filtros
-      var oFilter = new Filter({
-        filters: aFilters,
-        and: false
-      });
-
-      oBinding.filter(oFilter);
+      this._applyAllFilters();   // combina con filtros rápidos + avanzados
     },
 
     onQuickFilter: function (oEvent) {
@@ -520,7 +567,7 @@ sap.ui.define([
       return this._oCreateDialog;
     },
 
-    _loadExternalCatalogData: async function () {
+    _loadExternalCatalogData: async function () { 
       const oView = this.getView();
       const oModel = new sap.ui.model.json.JSONModel({
         sociedades: [],
@@ -536,14 +583,10 @@ sap.ui.define([
       const oSwitchModel = this.getView().getModel("dbServerSwitch");
       const bIsAzure = oSwitchModel.getProperty("/state");
 
-      // 2. Definimos la base de la API del "otro team" (¡Esto usa el proxy!)
       const sBaseUrl = "http://localhost:3034/api/cat/crudLabelsValues";
-
-      // 3. Asignamos el DBServer correcto
-      const sDBServer = bIsAzure ? "CosmosDB" : "MongoDB"; // <-- ¡Aquí está la magia!
+      const sDBServer = bIsAzure ? "CosmosDB" : "MongoDB";
       const sLoggedUser = "MIGUELLOPEZ";
 
-      // 4. Construimos la URL final
       const url = `${sBaseUrl}?ProcessType=GetAll&LoggedUser=${sLoggedUser}&DBServer=${sDBServer}`;
 
       try {
@@ -579,6 +622,7 @@ sap.ui.define([
         const valores = [];
 
         registros.forEach((item) => {
+
           // SOCIEDADES
           if (item.IDSOCIEDAD && !sociedades.some((s) => s.key === item.IDSOCIEDAD)) {
             sociedades.push({
@@ -599,51 +643,60 @@ sap.ui.define([
             });
           }
 
-          // ETIQUETAS
-          // Guardar etiqueta COMPLETA en etiquetasAll
           // ETIQUETAS (IDS reales + conservar COLECCION/SECCION para filtros)
-          if (item.IDETIQUETA && !etiquetas.some((e) => e.key === item.IDETIQUETA)) {
+          if (
+            item.IDETIQUETA &&
+            !etiquetas.some((e) =>
+              e.IDSOCIEDAD === item.IDSOCIEDAD &&
+              e.IDCEDI     === item.IDCEDI &&
+              e.IDETIQUETA === item.IDETIQUETA
+            )
+          ) {
+
+            // Texto “bonito”: ALIAS > ETIQUETA > IDETIQUETA
+            const sTxt =
+              (item.ALIAS && item.ALIAS.trim()) ||
+              (item.ETIQUETA && item.ETIQUETA.trim()) ||
+              item.IDETIQUETA;
+
             etiquetas.push({
-              key: item.IDETIQUETA,
-              text: item.IDETIQUETA,
+              key:        item.IDETIQUETA,
+              text:       sTxt,              // lo que verá el ComboBox
               IDETIQUETA: item.IDETIQUETA,
-              ETIQUETA: item.ETIQUETA,
+              ALIAS:      item.ALIAS || "",
+              ETIQUETA:   item.ETIQUETA,
               IDSOCIEDAD: item.IDSOCIEDAD,
-              IDCEDI: item.IDCEDI,
-              COLECCION: item.COLECCION || "",
-              SECCION: item.SECCION || "",
-              _raw: item
+              IDCEDI:     item.IDCEDI,
+              COLECCION:  item.COLECCION || "",
+              SECCION:    item.SECCION || "",
+              _raw:       item
             });
           }
-
-
-          const etiquetasSimplificadas = etiquetas.map(e => ({
-            key: e.IDETIQUETA,
-            text: e.ETIQUETA || e.IDETIQUETA,
-            IDSOCIEDAD: e.IDSOCIEDAD,
-            IDCEDI: e.IDCEDI
-          }));
-
-          oModel.setProperty("/etiquetas", etiquetasSimplificadas);
-          oModel.setProperty("/etiquetasAll", etiquetas); // <-- GUARDAR OBJETO COMPLETO
-
 
           // VALORES anidados
           if (Array.isArray(item.valores)) {
             item.valores.forEach((v) => {
+              const sValorTxt =
+                (v.ALIAS && v.ALIAS.trim()) ||
+                (v.VALOR && v.VALOR.trim()) ||
+                v.IDVALOR;
+
               valores.push({
-                key: v.IDVALOR,     // ID REAL
-                text: v.IDVALOR,
+                key: v.IDVALOR,
+                text: sValorTxt,                 // ALIAS si existe
                 IDVALOR: v.IDVALOR,
                 VALOR: v.VALOR,
-                IDSOCIEDAD: v.IDSOCIEDAD,
-                IDCEDI: v.IDCEDI,
+                ALIAS: v.ALIAS,
+                IDSOCIEDAD: item.IDSOCIEDAD,     // del padre
+                IDCEDI: item.IDCEDI,             // del padre
                 parentEtiqueta: item.IDETIQUETA
               });
             });
           }
-        });
 
+        }); // <- cierre de registros.forEach
+
+        // Logs finales
         console.log("✅ Sociedades cargadas:", sociedades);
         console.log("✅ CEDIS cargados:", cedis);
         console.log("✅ Etiquetas cargadas:", etiquetas);
@@ -1348,43 +1401,6 @@ sap.ui.define([
       this._applyAllFilters();
     },
 
-    // ==== LÓGICA DE FILTRADO Y BÚSQUEDA ====
-    onSearch1: function (oEvent) {
-      var sQuery =
-        oEvent.getParameter("newValue") ||
-        oEvent.getParameter("query") ||
-        oEvent.getSource().getValue();
-
-      this._aSearchFilters = [];
-
-      if (sQuery) {
-        var aFilters = [];
-
-        // 🔹 Si es número, seguimos usando búsqueda exacta
-        if (!isNaN(sQuery)) {
-          var iQuery = parseInt(sQuery, 10);
-          aFilters.push(new Filter("IDSOCIEDAD", FilterOperator.EQ, iQuery));
-          aFilters.push(new Filter("IDCEDI", FilterOperator.EQ, iQuery));
-          aFilters.push(new Filter("ID", FilterOperator.EQ, iQuery));
-        }
-
-        // 🔹 Para texto, usamos Contains (coincidencia parcial)
-        aFilters.push(new Filter("IDETIQUETA", FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("IDVALOR", FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("IDGRUPOET", FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("INFOAD", FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("EstadoTxt", FilterOperator.Contains, sQuery));
-        // si escribes "Act" o "Inac" también te filtra por estado
-
-        // OR entre todos esos campos
-        this._aSearchFilters = [
-          new Filter({ filters: aFilters, and: false })
-        ];
-      }
-
-      this._applyAllFilters();   // 👉 aquí se combina con quick filter + filtros avanzados
-    },
-
     onFilterApply: function () {
       // ... sacas los valores del diálogo  ...
 
@@ -1403,6 +1419,7 @@ sap.ui.define([
     _aDialogFilters: [],
     _aQuickFilters: [],
 
+    
     _applyAllFilters: function () {
       var oBinding = this.byId("tblGrupos").getBinding("items");
 
@@ -1511,10 +1528,7 @@ sap.ui.define([
       this._getFilterDialog().then(oDialog => oDialog.close());
     },
 
-    onCancelFilters: function () {
-      // Opcional: podrías resetear el modelo a su estado anterior si lo guardaste al abrir.
-      this._getFilterDialog().then(oDialog => oDialog.close());
-    },
+
 
     onResetFilters: function () {
       this._initFilterModel(); // Restaura el modelo a su estado inicial
@@ -1918,54 +1932,68 @@ sap.ui.define([
     // === GRUPO ET para el modal de CREAR ===
     onOpenGrupoEt: function () {
       const oCreate = this.getView().getModel("createModel");
-      const sSoc   = oCreate.getProperty("/IDSOCIEDAD");
-      const sCedi  = oCreate.getProperty("/IDCEDI");
+      const sSoc  = oCreate.getProperty("/IDSOCIEDAD");
+      const sCedi = oCreate.getProperty("/IDCEDI");
 
       if (!sSoc || !sCedi) {
         sap.m.MessageToast.show("Selecciona primero Sociedad y CEDI.");
         return;
       }
 
-      // Modo de trabajo del diálogo
+      // modo del diálogo
       this._grupoEtEditMode = "create";
 
-      const oCascade      = this.getView().getModel("cascadeModel");
-      const aEtiquetasAll = oCascade.getProperty("/etiquetasAll") || [];
+      const oCascade = this.getView().getModel("cascadeModel");
+      const oGM      = this.getView().getModel("grupoEtModel");
 
-      // Filtrar etiquetas sólo para esa Sociedad / CEDI
-      const aFiltradas = aEtiquetasAll.filter(e =>
+      // TODAS las etiquetas completas
+      const aAllEtiquetas = oCascade.getProperty("/etiquetasAll") || [];
+
+      // Solo las de esa Sociedad + CEDI
+      const aFiltradas = aAllEtiquetas.filter(e =>
         String(e.IDSOCIEDAD) === String(sSoc) &&
         String(e.IDCEDI)     === String(sCedi)
       );
-      oCascade.setProperty("/etiquetas", aFiltradas);
 
-      // Limpiar selección previa en el modelo de Grupo ET
-      const oGM = this.getView().getModel("grupoEtModel");
+      // Mapeamos a lo que espera el dialog (IDETIQUETA / ETIQUETA)
+      const aComboItems = aFiltradas.map(e => {
+          const sTxt =
+              (e.ALIAS && e.ALIAS.trim()) ||
+              (e.ETIQUETA && e.ETIQUETA.trim()) ||
+              e.IDETIQUETA;
+
+          return {
+              IDETIQUETA: e.IDETIQUETA, // ID real
+              ETIQUETA:   sTxt,         // texto para mostrar en combo (alias si existe)
+              ALIAS:      e.ALIAS || "",
+              RAW_ETIQUETA: e.ETIQUETA
+          };
+      });
+
+      // 👉 ahora sí, al modelo del diálogo
+      oGM.setProperty("/etiquetas", aComboItems);
       oGM.setProperty("/selectedEtiqueta", null);
       oGM.setProperty("/selectedValor", null);
       oGM.setProperty("/valoresList", []);
       oGM.setProperty("/displayName", "");
 
-      // Abrir / crear el diálogo compartido
+      // Abrir / crear el fragmento
       if (!this._oGrupoEtDialog) {
-      sap.ui.core.Fragment.load({
-        id: this.getView().getId() + "--grupoEtDialog",
-        name: "com.itt.ztgruposet.frontendztgruposet.view.fragments.GrupoEtDialog",
-        controller: this
-      }).then(oDialog => {
-        this._oGrupoEtDialog = oDialog;
-        this.getView().addDependent(oDialog);
-
-        this._setupGrupoEtDialogFilters();   // 👈 aquí
-
-        oDialog.open();
-      });
+        sap.ui.core.Fragment.load({
+          id: this.getView().getId() + "--grupoEtDialog",
+          name: "com.itt.ztgruposet.frontendztgruposet.view.fragments.GrupoEtDialog",
+          controller: this
+        }).then(oDialog => {
+          this._oGrupoEtDialog = oDialog;
+          this.getView().addDependent(oDialog);
+          this._setupGrupoEtDialogFilters(); // filtros de búsqueda
+          oDialog.open();
+        });
       } else {
-        this._setupGrupoEtDialogFilters();     // 👈 y también aquí
+        this._setupGrupoEtDialogFilters();
         this._oGrupoEtDialog.open();
       }
     },
-
     // Abre el diálogo (carga fragment con id prefijado, repuebla listas y abre)
 
      onOpenGrupoEtInline: function () {
@@ -1987,11 +2015,25 @@ sap.ui.define([
       const aFiltradas = aAllEt.filter(e =>
         String(e.IDSOCIEDAD) === String(sSoc) &&
         String(e.IDCEDI)     === String(sCedi)
-      );
+      ).map(e => {
+          const sTxt =
+              (e.ALIAS && e.ALIAS.trim()) ||
+              (e.ETIQUETA && e.ETIQUETA.trim()) ||
+              e.IDETIQUETA;
+
+          return {
+              IDETIQUETA: e.IDETIQUETA,
+              ETIQUETA:   sTxt,
+              ALIAS:      e.ALIAS || "",
+              RAW_ETIQUETA: e.ETIQUETA
+          };
+      });
 
       // 2) Pero las guardamos en grupoEtModel (el que usa el fragmento)
       const oGrupoEtModel = this.getView().getModel("grupoEtModel");
       oGrupoEtModel.setProperty("/etiquetas", aFiltradas);
+
+      
       oGrupoEtModel.setProperty("/selectedEtiqueta", "");  // opcional
       oGrupoEtModel.setProperty("/valoresList", []);       // limpia valores
       oGrupoEtModel.setProperty("/selectedValor", "");     // opcional
@@ -2117,15 +2159,33 @@ sap.ui.define([
       // ⚠️ Asegúrate que la propiedad sea la correcta:
       //    si en tus valores el campo es IDETIQUETA usa v.IDETIQUETA,
       //    si de verdad usas parentEtiqueta, déjalo como está.
+      
       const aFiltered = aAllVals.filter(v =>
         String(v.IDSOCIEDAD)     === String(sSoc) &&
         String(v.IDCEDI)         === String(sCedi) &&
         String(v.parentEtiqueta) === String(selectedEtiquetaId)
-        // o bien: String(v.IDETIQUETA) === String(selectedEtiquetaId)
       );
 
+      // Mapear para priorizar ALIAS en el texto
+      const aMappedVals = aFiltered.map(v => {
+          const sTxt =
+              (v.ALIAS && v.ALIAS.trim()) ||
+              (v.VALOR && v.VALOR.trim()) ||
+              v.IDVALOR;
+
+          return {
+              IDVALOR: v.IDVALOR,      // ID real
+              VALOR:   sTxt,           // texto para mostrar (alias si existe)
+              ALIAS:   v.ALIAS || "",
+              RAW_VALOR: v.VALOR,
+              IDSOCIEDAD: v.IDSOCIEDAD,
+              IDCEDI: v.IDCEDI,
+              parentEtiqueta: v.parentEtiqueta
+          };
+      });
+
       // 4) Cargar la lista para el combo de "Grupo ET - Valor"
-      oGM.setProperty("/valoresList", aFiltered);
+      oGM.setProperty("/valoresList", aMappedVals);
 
       // 5) Limpiar valor seleccionado y el texto del resultado mientras no se elija un valor
       oGM.setProperty("/selectedValor", null);
@@ -2320,14 +2380,14 @@ sap.ui.define([
           change: this.onInlineCediChange.bind(this)
       });
 
-      // ETIQUETA (ComboBox con filtro custom)
+      // ETIQUETA (usa texto amigable: ALIAS > ETIQUETA > IDETIQUETA)
       const oCmbEtiquetaInline = new ComboBox({
           width: "100%",
           items: {
               path: "cascadeModel>/etiquetas",
               template: new CoreItem({
-                  key: "{cascadeModel>IDETIQUETA}",
-                  text: "{cascadeModel>ETIQUETA}"
+                  key:  "{cascadeModel>IDETIQUETA}", // ID real de la etiqueta
+                  text: "{cascadeModel>text}"        // aquí va el ALIAS / texto bonito
               })
           },
           selectedKey: "{inlineEdit>/current/IDETIQUETA}",
@@ -2353,8 +2413,8 @@ sap.ui.define([
           items: {
               path: "cascadeModel>/valores",
               template: new CoreItem({
-                  key: "{cascadeModel>IDVALOR}",
-                  text: "{cascadeModel>VALOR}"
+                  key:  "{cascadeModel>IDVALOR}", // ID real del valor
+                  text: "{cascadeModel>text}"     // 👈 ALIAS / texto bonito del valor
               })
           },
           selectedKey: "{inlineEdit>/current/IDVALOR}"
@@ -2486,7 +2546,7 @@ sap.ui.define([
 
   filterGrupoEtEtiqueta: function (sTerm, oItem) {
     // Buscar por IDETIQUETA y ETIQUETA
-    return this._filterComboByTerm(sTerm, oItem, ["IDETIQUETA", "ETIQUETA"]);
+    return this._filterComboByTerm(sTerm, oItem, ["IDETIQUETA", "ETIQUETA", "ALIAS"]);
   },
 
   filterGrupoEtValor: function (sTerm, oItem) {

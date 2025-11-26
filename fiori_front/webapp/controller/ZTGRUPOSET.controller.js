@@ -34,6 +34,12 @@ sap.ui.define([
 
      _inlineOriginal: null,   
 
+     
+    // 🔎 estado de filtros
+    _sSearchQuery: "",
+    _sQuickFilterKey: "ALL",
+    _oAdvancedFilter: null,
+
     onAvatarPressed: function () {
       MessageToast.show("Avatar pressed!");
     },
@@ -42,9 +48,7 @@ sap.ui.define([
       MessageToast.show("Logo pressed!");
     },
 
-    _aSearchFilters: [],
-    _aDialogFilters: [],
-    _aQuickFilters: [],
+    
     _oFilterDialog: null,
     onInit() {
 
@@ -214,15 +218,14 @@ sap.ui.define([
           );
 
           // Texto amigable de ETIQUETA
-          const sEtiquetaTxt =
-            (oMatch && oMatch.ALIAS) ||
-            x.ALIAS ||
-            x.IDETIQUETA;
+         const sEtiquetaTxt =
+          (oMatch && oMatch.text) ||
+          x.ALIAS ||
+          x.IDETIQUETA;
 
           // Texto amigable de VALOR
           const sValorTxt =
-            (oValorMatch && oValorMatch.ALIAS && oValorMatch.ALIAS.trim()) ||
-            (oValorMatch && oValorMatch.VALOR && oValorMatch.VALOR.trim()) ||
+            (oValorMatch && oValorMatch.text && String(oValorMatch.text).trim()) ||
             x.IDVALOR;
 
           // Texto amigable de SOCIEDAD y CEDI
@@ -321,57 +324,15 @@ sap.ui.define([
     //función de búsqueda ////////////////////////////////////////////////////////////////////////////////
 
     // ==== LÓGICA DE FILTRADO Y BÚSQUEDA (quick search) ====
-    onSearch1: function (oEvent) {
+    onSearch1:function (oEvent) {
       var sQuery =
         oEvent.getParameter("newValue") ||
         oEvent.getParameter("query") ||
-        oEvent.getSource().getValue();
+        (oEvent.getSource && oEvent.getSource().getValue && oEvent.getSource().getValue()) ||
+        "";
 
-      this._aSearchFilters = [];
-
-      if (sQuery) {
-        var aFilters = [];
-
-        // 🔹 Si es número, seguimos usando búsqueda exacta en campos numéricos
-        if (!isNaN(sQuery)) {
-          var iQuery = parseInt(sQuery, 10);
-          aFilters.push(new Filter("IDSOCIEDAD", FilterOperator.EQ, iQuery));
-          aFilters.push(new Filter("IDCEDI", FilterOperator.EQ, iQuery));
-          aFilters.push(new Filter("ID", FilterOperator.EQ, iQuery)); // por si tienes IDs numéricos
-        }
-
-        // 🔹 Búsqueda parcial en campos de texto
-        aFilters.push(new Filter("ETIQUETA_TXT", FilterOperator.Contains, sQuery)); // etiqueta legible
-        aFilters.push(new Filter("VALOR_TXT",    FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("IDETIQUETA",   FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("IDVALOR",      FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("IDGRUPOET",    FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("INFOAD",       FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("EstadoTxt",    FilterOperator.Contains, sQuery));
-        aFilters.push(new Filter("ID",           FilterOperator.Contains, sQuery)); // 👈 AHORA TAMBIÉN ID
-
-        // OR entre todos esos campos
-        this._aSearchFilters = [
-          new Filter({ filters: aFilters, and: false })
-        ];
-      }
-
-      this._applyAllFilters();   // combina con filtros rápidos + avanzados
-    },
-
-    onQuickFilter: function (oEvent) {
-      var sKey = oEvent.getParameter("key");
-      var aFilters = [];
-
-      if (sKey === "ACT") {
-        aFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Activo"));
-      } else if (sKey === "INA") {
-        aFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Inactivo"));
-      }
-      // sKey === "ALL" => sin filtro de estado
-
-      // Puedes combinar con otros filtros si quieres, por ahora solo Estado:
-      this.byId("tblGrupos").getBinding("items").filter(aFilters);
+      this._sSearchQuery = sQuery;   // guardamos el texto
+      this._applyTableFilters();     // filtramos en _aAllItems
     },
 
     // === Helper: obtener el registro seleccionado de la tabla ===
@@ -686,7 +647,10 @@ sap.ui.define([
                         IDSOCIEDAD: item.IDSOCIEDAD,
                         IDCEDI: item.IDCEDI,
                         COLECCION: item.COLECCION ?? "",
-                        SECCION: item.SECCION ?? ""
+                        SECCION: item.SECCION ?? "",
+                        createdAt: item.createdAt ?? "",
+                        updatedAt: item.updatedAt ?? "",
+                        _raw: item
                     });
                 }
 
@@ -1401,17 +1365,114 @@ sap.ui.define([
       });
     },
     //filtro rapido ////////////////////////////////////////////////////////////////////////////////
-    onQuickFilter: function (oEvent) {
-      var sKey = oEvent.getParameter("key");
-      this._aQuickFilters = [];
+      onQuickFilter: function (oEvent) {
+      this._sQuickFilterKey = oEvent.getParameter("key") || "ALL";
+      this._applyTableFilters();
+    },
 
-      if (sKey === "ACT") {
-        this._aQuickFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Activo"));
-      } else if (sKey === "INA") {
-        this._aQuickFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Inactivo"));
+      // === FILTRAR TODO EN CLIENTE (search + quick + avanzado) ===
+    _applyTableFilters: function () {
+      var sQueryRaw = this._sSearchQuery || "";
+      var sQuery    = sQueryRaw.toLowerCase().trim();
+      var sQuickKey = this._sQuickFilterKey || "ALL";
+      var oAF       = this._oAdvancedFilter || {};
+
+      var bIsNumeric = sQueryRaw !== "" && !isNaN(sQueryRaw);
+      var iNum       = bIsNumeric ? parseInt(sQueryRaw, 10) : null;
+
+      function containsCI(val, needle) {
+        if (!needle) return true;              // sin filtro → no restringe
+        var s = (val == null ? "" : String(val)).toLowerCase();
+        return s.indexOf(needle.toLowerCase()) !== -1;
       }
 
-      this._applyAllFilters();
+      this._aFilteredItems = this._aAllItems.filter(function (oItem) {
+
+        // 1) Filtro rápido por estado (chips)
+        if (sQuickKey === "ACT" && oItem.EstadoTxt !== "Activo")   return false;
+        if (sQuickKey === "INA" && oItem.EstadoTxt !== "Inactivo") return false;
+
+        // 2) Filtro avanzado (Sociedad, CEDI, Etiqueta, Valor, Estado, Fechas)
+        if (oAF) {
+          // Sociedad: por texto ó por ID
+          if (oAF.Sociedad &&
+            !containsCI(oItem.SOCIEDAD_TXT, oAF.Sociedad) &&
+            String(oItem.IDSOCIEDAD) !== String(oAF.Sociedad)) {
+            return false;
+          }
+
+          // CEDI
+          if (oAF.Cedi &&
+            !containsCI(oItem.CEDI_TXT, oAF.Cedi) &&
+            String(oItem.IDCEDI) !== String(oAF.Cedi)) {
+            return false;
+          }
+
+          // Etiqueta
+          if (oAF.Etiqueta &&
+            !containsCI(oItem.ETIQUETA_TXT, oAF.Etiqueta) &&
+            String(oItem.IDETIQUETA) !== String(oAF.Etiqueta)) {
+            return false;
+          }
+
+          // Valor
+          if (oAF.Valor &&
+            !containsCI(oItem.VALOR_TXT, oAF.Valor) &&
+            String(oItem.IDVALOR) !== String(oAF.Valor)) {
+            return false;
+          }
+
+          // Estado del combo del diálogo
+          if (oAF.Estado === "ACT" && oItem.EstadoTxt !== "Activo")   return false;
+          if (oAF.Estado === "INA" && oItem.EstadoTxt !== "Inactivo") return false;
+
+          // Rango de fechas usando FECHAREG (si quieres):
+          if (oAF.From && oAF.To && oItem.FECHAREG) {
+            var dItem = new Date(oItem.FECHAREG + "T00:00:00");
+            if (!(dItem >= oAF.From && dItem <= oAF.To)) {
+              return false;
+            }
+          }
+        }
+
+        // 3) Si no hay texto de búsqueda global → ya pasó filtros
+        if (!sQuery) {
+          return true;
+        }
+
+        // 4) Búsqueda global: de Sociedad hasta ID (textos + IDGRUPOET + INFOAD)
+        var aCampos = [
+          oItem.SOCIEDAD_TXT,
+          oItem.CEDI_TXT,
+          oItem.ETIQUETA_TXT,
+          oItem.VALOR_TXT,
+          oItem.IDGRUPOET,
+          oItem.ID,
+          oItem.INFOAD,
+          oItem.EstadoTxt
+        ];
+
+        var sHaystack = aCampos
+          .map(function (v) { return (v == null ? "" : String(v)).toLowerCase(); })
+          .join(" | ");
+
+        if (sHaystack.indexOf(sQuery) !== -1) {
+          return true;
+        }
+
+        // 5) Coincidencia numérica exacta en IDs
+        if (bIsNumeric) {
+          if (Number(oItem.IDSOCIEDAD) === iNum) return true;
+          if (Number(oItem.IDCEDI)     === iNum) return true;
+          if (Number(oItem.ID)         === iNum) return true;
+        }
+
+        return false;
+      }.bind(this));
+
+      // Siempre reiniciar a la primera página al cambiar filtros
+      this._iCurrentPage = 1;
+      this._updateTablePage();
     },
 
     onFilterApply: function () {
@@ -1433,16 +1494,7 @@ sap.ui.define([
     _aQuickFilters: [],
 
     
-    _applyAllFilters: function () {
-      var oBinding = this.byId("tblGrupos").getBinding("items");
-
-      var aAll = []
-        .concat(this._aSearchFilters || [])
-        .concat(this._aDialogFilters || [])
-        .concat(this._aQuickFilters || []);
-
-      oBinding.filter(aAll);  // AND entre grupos
-    },
+    
 
     _oFilterDialog: null,
 
@@ -1465,49 +1517,24 @@ sap.ui.define([
       var oCore = sap.ui.getCore();
       var oView = this.getView();
 
-      var sSoc = oCore.byId(oView.createId("fSociedad")).getValue().trim();
-      var sCedi = oCore.byId(oView.createId("fCedi")).getValue().trim();
-      var sEti = oCore.byId(oView.createId("fEtiqueta")).getValue().trim();
-      var sVal = oCore.byId(oView.createId("fValor")).getValue().trim();
-      var oDRS = oCore.byId(oView.createId("fRegDate"));
+      var sSoc   = oCore.byId(oView.createId("fSociedad")).getValue().trim();
+      var sCedi  = oCore.byId(oView.createId("fCedi")).getValue().trim();
+      var sEti   = oCore.byId(oView.createId("fEtiqueta")).getValue().trim();
+      var sVal   = oCore.byId(oView.createId("fValor")).getValue().trim();
+      var oDRS   = oCore.byId(oView.createId("fRegDate"));
       var oEstadoSB = oCore.byId(oView.createId("fEstado"));
 
-      var oFrom = oDRS.getDateValue();
-      var oTo = oDRS.getSecondDateValue();
-      var sEstadoKey = oEstadoSB.getSelectedKey() || "ALL";
+      this._oAdvancedFilter = {
+        Sociedad: sSoc || "",
+        Cedi:     sCedi || "",
+        Etiqueta: sEti || "",
+        Valor:    sVal || "",
+        Estado:   oEstadoSB.getSelectedKey() || "ALL",
+        From:     oDRS.getDateValue() || null,
+        To:       oDRS.getSecondDateValue() || null
+      };
 
-      var aFilters = [];
-
-      if (sSoc && !isNaN(sSoc)) {
-        aFilters.push(new Filter("IDSOCIEDAD", FilterOperator.EQ, parseInt(sSoc, 10)));
-      }
-
-      if (sCedi && !isNaN(sCedi)) {
-        aFilters.push(new Filter("IDCEDI", FilterOperator.EQ, parseInt(sCedi, 10)));
-      }
-
-      if (sEti) {
-        aFilters.push(new Filter("IDETIQUETA", FilterOperator.EQ, sEti));
-      }
-
-      if (sVal) {
-        aFilters.push(new Filter("IDVALOR", FilterOperator.EQ, sVal));
-      }
-
-      if (oFrom && oTo) {
-        aFilters.push(new Filter("REGDATE", FilterOperator.BT, oFrom, oTo));
-      }
-
-      if (sEstadoKey === "ACT") {
-        aFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Activo"));
-      } else if (sEstadoKey === "INA") {
-        aFilters.push(new Filter("EstadoTxt", FilterOperator.EQ, "Inactivo"));
-      }
-
-      
-      this._aDialogFilters = aFilters;   // guardamos solo aquí
-      this._applyAllFilters();
-
+      this._applyTableFilters();
       this._oFilterDialog.close();
     },
 
@@ -1524,10 +1551,10 @@ sap.ui.define([
       oCore.byId(oView.createId("fRegDate")).setSecondDateValue(null);
       oCore.byId(oView.createId("fEstado")).setSelectedKey("ALL");
 
-    
-      this._aDialogFilters = [];   // quitar completamente los filtros avanzados
+      // 🔄 limpiar filtro avanzado
+      this._oAdvancedFilter = null;
 
-      this._applyAllFilters();     // se quedan solo search + quick (si hay)
+      this._applyTableFilters();
     },
 
     onFilterCancel: function () {
@@ -1644,7 +1671,9 @@ sap.ui.define([
       this._updateTablePage();
     },
 
-    _updateTablePage: function () {
+    //PAGINACION COMENTADA
+
+    /* _updateTablePage: function () {
       const oView = this.getView();
       const iTotalItems = this._aFilteredItems.length;
       const iTotalPages = Math.ceil(iTotalItems / this._iPageSize);
@@ -1675,6 +1704,29 @@ sap.ui.define([
         oView.byId("txtPageInfo").setText(`Mostrando ${iStartIndex + 1} - ${Math.min(iEndIndex, iTotalItems)} de ${iTotalItems}`);
       } else {
         oView.byId("txtPageInfo").setText("No hay registros");
+      }
+    },
+    */
+
+    //PAGINACION SIN PAGINAS
+    _updateTablePage: function () {
+      const oView = this.getView();
+
+      // 👉 En vez de hacer el slice por página, usamos TODO el arreglo filtrado
+      const aItems = this._aFilteredItems || this._aAllItems || [];
+
+      // Poner todos los registros en el modelo de la tabla
+      oView.getModel("grupos").setData({ items: aItems });
+
+      // 👉 Ocultar / deshabilitar controles de paginación
+      if (oView.byId("btnPrevPage")) {
+        oView.byId("btnPrevPage").setVisible(false);
+      }
+      if (oView.byId("btnNextPage")) {
+        oView.byId("btnNextPage").setVisible(false);
+      }
+      if (oView.byId("txtPageInfo")) {
+        oView.byId("txtPageInfo").setVisible(false);
       }
     },
 
@@ -1944,20 +1996,32 @@ sap.ui.define([
 
     // === GRUPO ET para el modal de CREAR ===
     onOpenGrupoEt: function () {
-      const oCreate = this.getView().getModel("createModel");
-      const sSoc  = oCreate.getProperty("/IDSOCIEDAD");
-      const sCedi = oCreate.getProperty("/IDCEDI");
+      const oView   = this.getView();
+      const oCreate = oView.getModel("createModel");
+      const oEdit   = oView.getModel("editModel"); // <<-- pon aquí tu modelo de edición
+
+      // 1) Obtener Sociedad / CEDI
+      let sSoc  = oCreate && oCreate.getProperty("/IDSOCIEDAD");
+      let sCedi = oCreate && oCreate.getProperty("/IDCEDI");
+      let sMode = "create";
+
+      // Si no vienen del createModel, intentamos desde el modelo de edición
+      if (!sSoc || !sCedi) {
+        sSoc  = oEdit && oEdit.getProperty("/IDSOCIEDAD");
+        sCedi = oEdit && oEdit.getProperty("/IDCEDI");
+        sMode = "update";
+      }
 
       if (!sSoc || !sCedi) {
         sap.m.MessageToast.show("Selecciona primero Sociedad y CEDI.");
         return;
       }
 
-      // modo del diálogo
-      this._grupoEtEditMode = "create";
+      // Guardamos modo para luego (por si lo usas en onApplyGrupoEt)
+      this._grupoEtEditMode = sMode;
 
-      const oCascade = this.getView().getModel("cascadeModel");
-      const oGM      = this.getView().getModel("grupoEtModel");
+      const oCascade = oView.getModel("cascadeModel");
+      const oGM      = oView.getModel("grupoEtModel");
 
       // TODAS las etiquetas completas
       const aAllEtiquetas = oCascade.getProperty("/etiquetasAll") || [];
@@ -1968,22 +2032,23 @@ sap.ui.define([
         String(e.IDCEDI)     === String(sCedi)
       );
 
-      // Mapeamos a lo que espera el dialog (IDETIQUETA / ETIQUETA)
+      // Mapeo para el combo
       const aComboItems = aFiltradas.map(e => {
-          const sTxt =
-              (e.ALIAS && e.ALIAS.trim()) ||
-              (e.ETIQUETA && e.ETIQUETA.trim()) ||
-              e.IDETIQUETA;
+        const sTxt =
+          (e.text && String(e.text).trim()) ||
+          (e.ALIAS && e.ALIAS.trim()) ||
+          (e.ETIQUETA && e.ETIQUETA.trim()) ||
+          e.IDETIQUETA;
 
-          return {
-              IDETIQUETA: e.IDETIQUETA, // ID real
-              ETIQUETA:   sTxt,         // texto para mostrar en combo (alias si existe)
-              ALIAS:      e.ALIAS || "",
-              RAW_ETIQUETA: e.ETIQUETA
-          };
+        return {
+          IDETIQUETA:   e.IDETIQUETA,       // ID real -> key del ComboBox
+          ETIQUETA:     sTxt,               // texto mostrado
+          ALIAS:        e.ALIAS || "",
+          RAW_ETIQUETA: e.text || e.ETIQUETA
+        };
       });
 
-      // 👉 ahora sí, al modelo del diálogo
+      // Set al modelo del diálogo
       oGM.setProperty("/etiquetas", aComboItems);
       oGM.setProperty("/selectedEtiqueta", null);
       oGM.setProperty("/selectedValor", null);
@@ -1993,13 +2058,13 @@ sap.ui.define([
       // Abrir / crear el fragmento
       if (!this._oGrupoEtDialog) {
         sap.ui.core.Fragment.load({
-          id: this.getView().getId() + "--grupoEtDialog",
+          id: oView.getId() + "--grupoEtDialog",
           name: "com.itt.ztgruposet.frontendztgruposet.view.fragments.GrupoEtDialog",
           controller: this
         }).then(oDialog => {
           this._oGrupoEtDialog = oDialog;
-          this.getView().addDependent(oDialog);
-          this._setupGrupoEtDialogFilters(); // filtros de búsqueda
+          oView.addDependent(oDialog);
+          this._setupGrupoEtDialogFilters();
           oDialog.open();
         });
       } else {
@@ -2030,15 +2095,16 @@ sap.ui.define([
         String(e.IDCEDI)     === String(sCedi)
       ).map(e => {
           const sTxt =
+              (e.text && String(e.text).trim()) ||   //AHORA USAMOS text
               (e.ALIAS && e.ALIAS.trim()) ||
               (e.ETIQUETA && e.ETIQUETA.trim()) ||
               e.IDETIQUETA;
 
           return {
-              IDETIQUETA: e.IDETIQUETA,
-              ETIQUETA:   sTxt,
-              ALIAS:      e.ALIAS || "",
-              RAW_ETIQUETA: e.ETIQUETA
+              IDETIQUETA:  e.IDETIQUETA,   // ID real
+              ETIQUETA:    sTxt,           // TEXTO QUE VAS A MOSTRAR
+              ALIAS:       e.ALIAS || "",
+              RAW_ETIQUETA: e.text || e.ETIQUETA
           };
       });
 
@@ -2133,78 +2199,89 @@ sap.ui.define([
 
     // Cuando seleccionan la Etiqueta dentro del modal -> cargar valores en grupoEtModel>/valoresList
     onGrupoEtiquetaChange: function (oEvent) {
-      // ID de la etiqueta seleccionada (viene del ComboBox de Grupo ET - Etiqueta)
-      const selectedEtiquetaId = oEvent.getSource().getSelectedKey();
+        // ID de la etiqueta seleccionada (key del ComboBox "Grupo ET - Etiqueta")
+        const sSelectedEtiquetaId = oEvent.getSource().getSelectedKey();
 
-      // 1) Elegir de qué modelo leer según el modo en que se abrió el diálogo
-      //    - create  -> createModel
-      //    - update  -> updateModel
-      //    - inline  -> inlineEdit
-      let oContextModel;
-      if (this._grupoEtEditMode === "update") {
-        oContextModel = this.getView().getModel("updateModel");
-      } else if (this._grupoEtEditMode === "inline") {
-        oContextModel = this.getView().getModel("inlineEdit");
-      } else { // "create" por defecto
-        oContextModel = this.getView().getModel("createModel");
-      }
+        const oView    = this.getView();
+        const oGM      = oView.getModel("grupoEtModel");
+        const oCascade = oView.getModel("cascadeModel");
 
-      const oGM      = this.getView().getModel("grupoEtModel");
-      const oCascade = this.getView().getModel("cascadeModel");
+        // ==============================
+        // 1) Elegir de qué modelo leer contexto (create / update / inline)
+        // ==============================
+        let oContextModel;
+        if (this._grupoEtEditMode === "update") {
+            oContextModel = oView.getModel("updateModel");
+        } else if (this._grupoEtEditMode === "inline") {
+            oContextModel = oView.getModel("inlineEdit");
+        } else {                // "create" por defecto
+            oContextModel = oView.getModel("createModel");
+        }
 
-      // 👉 Muy importante: guardar también la etiqueta seleccionada en el modelo del diálogo
-      //    (se usa después para armar el IDGRUPOET y para el binding del ComboBox)
-      oGM.setProperty("/selectedEtiqueta", selectedEtiquetaId);
+        // Guardar la etiqueta seleccionada en el modelo del diálogo
+        oGM.setProperty("/selectedEtiqueta", sSelectedEtiquetaId);
 
-      // 2) Leer Sociedad y CEDI correctamente según el modo (create/update/inline)
-      let sSoc, sCedi;
-      if (this._grupoEtEditMode === "inline") {
-        sSoc  = oContextModel.getProperty("/current/IDSOCIEDAD");
-        sCedi = oContextModel.getProperty("/current/IDCEDI");
-      } else {
-        sSoc  = oContextModel.getProperty("/IDSOCIEDAD");
-        sCedi = oContextModel.getProperty("/IDCEDI");
-      }
+        // ==============================
+        // 2) Leer Sociedad y CEDI según el modo
+        // ==============================
+        let sSoc, sCedi;
+        if (this._grupoEtEditMode === "inline") {
+            sSoc  = oContextModel.getProperty("/current/IDSOCIEDAD");
+            sCedi = oContextModel.getProperty("/current/IDCEDI");
+        } else {
+            sSoc  = oContextModel.getProperty("/IDSOCIEDAD");
+            sCedi = oContextModel.getProperty("/IDCEDI");
+        }
 
-      // 3) Filtrar los valores de ESA etiqueta + Sociedad + CEDI
-      const aAllVals = oCascade.getProperty("/valoresAll") || [];
+        if (!sSoc || !sCedi || !sSelectedEtiquetaId) {
+            oGM.setProperty("/valoresList", []);
+            oGM.setProperty("/selectedValor", null);
+            oGM.setProperty("/displayName", "");
+            return;
+        }
 
-      // ⚠️ Asegúrate que la propiedad sea la correcta:
-      //    si en tus valores el campo es IDETIQUETA usa v.IDETIQUETA,
-      //    si de verdad usas parentEtiqueta, déjalo como está.
-      
-      const aFiltered = aAllVals.filter(v =>
-        String(v.IDSOCIEDAD)     === String(sSoc) &&
-        String(v.IDCEDI)         === String(sCedi) &&
-        String(v.parentEtiqueta) === String(selectedEtiquetaId)
-      );
+        // ==============================
+        // 3) Filtrar los valores de ESA etiqueta + Sociedad + CEDI
+        //    (valoresAll viene del cascadeModel)
+        // ==============================
+        const aAllVals = oCascade.getProperty("/valoresAll") || [];
 
-      // Mapear para priorizar ALIAS en el texto
-      const aMappedVals = aFiltered.map(v => {
-          const sTxt =
-              (v.ALIAS && v.ALIAS.trim()) ||
-              (v.VALOR && v.VALOR.trim()) ||
-              v.IDVALOR;
+        const aFiltered = aAllVals.filter(v =>
+            String(v.IDSOCIEDAD)     === String(sSoc) &&
+            String(v.IDCEDI)         === String(sCedi) &&
+            String(v.parentEtiqueta) === String(sSelectedEtiquetaId)   // << aquí se liga a la etiqueta
+        );
 
-          return {
-              IDVALOR: v.IDVALOR,      // ID real
-              VALOR:   sTxt,           // texto para mostrar (alias si existe)
-              ALIAS:   v.ALIAS || "",
-              RAW_VALOR: v.VALOR,
-              IDSOCIEDAD: v.IDSOCIEDAD,
-              IDCEDI: v.IDCEDI,
-              parentEtiqueta: v.parentEtiqueta
-          };
-      });
+        // ==============================
+        // 4) Mapear para mostrar KEY bonito (VALOR) y seguir guardando IDVALOR real
+        // ==============================
+        const aMappedVals = aFiltered.map(v => {
+            const sTxt =
+                (v.text && String(v.text).trim()) ||   // ← KEY del catálogo
+                (v.ALIAS && v.ALIAS.trim())      ||
+                (v.VALOR && v.VALOR.trim())      ||
+                v.IDVALOR;
 
-      // 4) Cargar la lista para el combo de "Grupo ET - Valor"
-      oGM.setProperty("/valoresList", aMappedVals);
+            return {
+                IDVALOR:        v.IDVALOR,          // ID real
+                VALOR:          sTxt,               // Texto visible en el ComboBox
+                ALIAS:          v.ALIAS || "",
+                RAW_VALOR:      v.text || v.VALOR,
+                IDSOCIEDAD:     v.IDSOCIEDAD,
+                IDCEDI:         v.IDCEDI,
+                parentEtiqueta: v.parentEtiqueta
+            };
+        });
 
-      // 5) Limpiar valor seleccionado y el texto del resultado mientras no se elija un valor
-      oGM.setProperty("/selectedValor", null);
-      oGM.setProperty("/displayName", "");
+        // Lista para el combo "Grupo ET - Valor"
+        oGM.setProperty("/valoresList", aMappedVals);
+
+        // ==============================
+        // 5) Resetear valor seleccionado y resultado
+        // ==============================
+        oGM.setProperty("/selectedValor", null);
+        oGM.setProperty("/displayName", "");
     },
-
     // Pre-cargar el modelo grupoEtModel a partir del inlineEdit
     _preloadGrupoEtForInline: function () {
       const oInline  = this.getView().getModel("inlineEdit");
@@ -2243,23 +2320,28 @@ sap.ui.define([
     onGrupoValorChange: function (oEvent) {
       const oGM = this.getView().getModel("grupoEtModel");
 
-      // ID de la etiqueta seleccionada (viene de onGrupoEtiquetaChange)
+      // ID de la etiqueta (ya se guardó en onGrupoEtiquetaChange)
       const sEtiId = oGM.getProperty("/selectedEtiqueta");
-      // ID del valor seleccionado (key del ComboBox de Grupo ET - Valor)
+      // ID del valor seleccionado (key del ComboBox Grupo ET - Valor)
       const sValId = oEvent.getSource().getSelectedKey();
 
-      // Si falta alguno, limpiamos el display
       if (!sEtiId || !sValId) {
+        oGM.setProperty("/selectedValor", null);
         oGM.setProperty("/displayName", "");
         return;
       }
 
-      // 1) Concatenar ID de ETIQUETA + "-" + ID de VALOR
-      const sGrupoEt = sEtiId + "-" + sValId;
-
-      // 2) Guardar el valor seleccionado y el texto que se mostrará en "Resultado (Etiqueta-Valor)"
+      // Guardar ID del valor
       oGM.setProperty("/selectedValor", sValId);
-      oGM.setProperty("/displayName", sGrupoEt);   // Ej: COLOR_PRODUCTO2-color
+
+      // 👉 Resultado debe ser: IDETIQUETA-IDVALOR (IDs reales)
+      const sGrupoEtId = `${sEtiId}-${sValId}`;
+
+      // Texto que se ve en "Resultado (Etiqueta-Valor)"
+      oGM.setProperty("/displayName", sGrupoEtId);
+
+      // Nota: en onApplyGrupoEt se sigue usando selectedEtiqueta/selectedValor
+      // para guardar el mismo formato IDETIQUETA-IDVALOR en IDGRUPOET.
     },
 
     // Aceptar: escribir en createModel>/IDGRUPOET (y cerrar)
@@ -2503,22 +2585,27 @@ sap.ui.define([
 
               // BOTONES
               new sap.m.HBox({
-                  width: "100%",
-                  justifyContent: "Center",
-                  alignItems: "Center",
-                  items: [
-                      new sap.m.Button({
-                          text: "Guardar",
-                          type: "Emphasized",
-                          press: this.onSaveInlineFromDetail.bind(this)
-                      }),
-                      new sap.m.Button({
-                          text: "Cancelar",
-                          type: "Transparent",
-                          press: this.onCancelInlineFromDetail.bind(this)
-                      })
-                  ]
-              })
+                width: "100%",
+                justifyContent: "Center",   // 👉 centra el contenido en la celda
+                items: [
+                    new sap.m.VBox({
+                        alignItems: "Center", // 👉 centra los botones dentro del VBox
+                        items: [
+                            new sap.m.Button({
+                                text: "Guardar",
+                                type: "Emphasized",
+                                press: this.onSaveInlineFromDetail.bind(this)
+                            }).addStyleClass("sapUiTinyMarginBottom"), // poquita separación
+
+                            new sap.m.Button({
+                                text: "Cancelar",
+                                type: "Transparent",
+                                press: this.onCancelInlineFromDetail.bind(this)
+                            })
+                        ]
+                    })
+                ]
+            })
           ]
       });
 

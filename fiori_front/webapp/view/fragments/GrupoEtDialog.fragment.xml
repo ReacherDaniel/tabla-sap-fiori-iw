@@ -11,7 +11,7 @@
           selectionChange=".onGrupoEtiquetaChange"
           placeholder="Selecciona una Etiqueta">
           <!-- key = IDETIQUETA, text = nombre de la etiqueta -->
-          <core:Item key="{grupoEtModel>IDETIQUETA}" text="{grupoEtModel>ETIQUETA}" />
+          <core:Item  key="{grupoEtModel>IDETIQUETA}"  text="{grupoEtModel>ETIQUETA}" />
         </ComboBox>
 
         <!-- Grupo ET - Valor -->
@@ -24,8 +24,7 @@
           selectionChange=".onGrupoValorChange"
           placeholder="Selecciona un Valor">
           <!-- key = IDVALOR, text = nombre del valor -->
-           <core:Item key="{grupoEtModel>IDVALOR}"
-               text="{grupoEtModel>VALOR}" />
+           <core:Item key="{grupoEtModel>IDVALOR}" text="{grupoEtModel>VALOR}" />
         </ComboBox>
 
         <!-- Resultado -->

@@ -18,7 +18,7 @@ import ModalFiltroET from "./ModalFiltroET.jsx";
 const URL_BASE_BACKEND_CINNALOVERS = "https://app-restful-sap-cds.onrender.com";
 const LOGGED_USER = "FMIRADAJ";
 
-const ModalCrear = ({
+const ModalEditar = ({
     isModalOpen,
     handleCloseModal,
     dbConnection,
@@ -28,6 +28,7 @@ const ModalCrear = ({
     etiquetasCatalog,
     valoresCatalog,
     showToastMessage,
+    registroEditar, // Nuevo prop: datos del registro a editar
 }) => {
 
     const [isLoading, setIsLoading] = useState(false);
@@ -40,14 +41,14 @@ const ModalCrear = ({
     const [filteredEtiquetasCatalogOriginal, setFilteredEtiquetasCatalogOriginal] = useState([]);
     const [filteredValoresCatalog, setFilteredValoresCatalog] = useState([]);
 
-    // Estados para los campos del formulario
-    const [sociedad, setSociedad] = useState("");
-    const [cedis, setCedis] = useState("");
-    const [etiqueta, setEtiqueta] = useState("");
-    const [valor, setValor] = useState("");
-    const [grupoET, setGrupoET] = useState("");
-    const [id, setId] = useState("");
-    const [infoAdicional, setInfoAdicional] = useState("");
+    // Estados para los campos del formulario - INICIALIZADOS CON LOS DATOS DEL REGISTRO
+    const [sociedad, setSociedad] = useState(registroEditar?.sociedad || "");
+    const [cedis, setCedis] = useState(registroEditar?.sucursal || "");
+    const [etiqueta, setEtiqueta] = useState(registroEditar?.etiqueta || "");
+    const [valor, setValor] = useState(registroEditar?.valor || "");
+    const [grupoET, setGrupoET] = useState(registroEditar?.idgroup || "");
+    const [id, setId] = useState(registroEditar?.idg || "");
+    const [infoAdicional, setInfoAdicional] = useState(registroEditar?.info || "");
 
     // Estado de filtro para las etiquetas
     const [filters, setFilters] = useState({
@@ -56,7 +57,44 @@ const ModalCrear = ({
         seccion: [],
     });
 
-    // Función para aplicar filtros a las etiquetas
+    // Efecto para inicializar los datos cuando cambia el registro a editar
+    useEffect(() => {
+        if (registroEditar) {
+            setSociedad(registroEditar.sociedad || "");
+            setCedis(registroEditar.sucursal || "");
+            setEtiqueta(registroEditar.etiqueta || "");
+            setValor(registroEditar.valor || "");
+            setGrupoET(registroEditar.idgroup || "");
+            setId(registroEditar.idg || "");
+            setInfoAdicional(registroEditar.info || "");
+
+            // Inicializar catálogos filtrados basados en el registro
+            if (registroEditar.sociedad) {
+                const cedisFiltrados = cedisCatalog.filter(c => 
+                    c.parentSoc?.toString() === registroEditar.sociedad?.toString()
+                );
+                setFilteredCedisCatalog(cedisFiltrados);
+            }
+
+            if (registroEditar.sociedad && registroEditar.sucursal) {
+                const etiquetasFiltradas = etiquetasCatalog.filter(et =>
+                    et.IDSOCIEDAD?.toString() === registroEditar.sociedad?.toString() &&
+                    et.IDCEDI?.toString() === registroEditar.sucursal?.toString()
+                );
+                setFilteredEtiquetasCatalog(etiquetasFiltradas);
+                setFilteredEtiquetasCatalogOriginal(etiquetasFiltradas);
+            }
+
+            if (registroEditar.etiqueta) {
+                const valoresFiltrados = valoresCatalog.filter(v =>
+                    v.parentEtiqueta === registroEditar.etiqueta
+                );
+                setFilteredValoresCatalog(valoresFiltrados);
+            }
+        }
+    }, [registroEditar, cedisCatalog, etiquetasCatalog, valoresCatalog]);
+
+    // Función para aplicar filtros a las etiquetas (igual que en ModalCrear)
     const applyFilters = (etiquetas, filtros) => {
         if (!etiquetas.length) return etiquetas;
 
@@ -150,7 +188,7 @@ const ModalCrear = ({
             return;
         }
         try {
-            const registro = {
+            const registroActualizado = {
                 IDSOCIEDAD: sociedad,
                 IDCEDI: cedis,
                 IDETIQUETA: etiqueta,
@@ -161,10 +199,23 @@ const ModalCrear = ({
                 ACTIVO: true,
             };
 
-            const processType = "Create";
+            const processType = "UpdateOne";
             const url = `${URL_BASE_BACKEND_CINNALOVERS}/api/security/gruposet/crud?ProcessType=${processType}&DBServer=${dbConnection}&LoggedUser=${LOGGED_USER}`;
 
-            const res = await axios.post(url, registro, {
+            // Para editar necesitamos enviar tanto los datos originales como los nuevos
+            const payload = {
+                // Llaves del registro ORIGINAL para que el backend lo encuentre
+                IDSOCIEDAD: registroEditar.sociedad,
+                IDCEDI: registroEditar.sucursal,
+                IDETIQUETA: registroEditar.etiqueta,
+                IDVALOR: registroEditar.valor,
+                IDGRUPOET: registroEditar.idgroup,
+                ID: registroEditar.idg,
+                // 'data' contiene todos los campos con sus NUEVOS valores
+                data: registroActualizado
+            };
+
+            const res = await axios.post(url, payload, {
                 headers: {
                     "Content-Type": "application/json",
                 },
@@ -174,17 +225,17 @@ const ModalCrear = ({
                 limpiarFormulario();
                 refetchData();
                 handleCloseModal();
-                showToastMessage(`✅ Registro creado correctamente`);
+                showToastMessage(`✅ Registro actualizado correctamente`);
             } else {
-                showToastMessage(`⚠️ Error al crear el registro`);
+                showToastMessage(`⚠️ Error al actualizar el registro`);
             }
 
         } catch (error) {
             if (error.response?.status === 409) {
-                showToastMessage("❌ Ya existe un registro con esos datos. No se puede crear.");
+                showToastMessage("❌ Ya existe un registro con esos datos. No se puede actualizar.");
             } else {
                 console.error("❌ Error al guardar:", error);
-                showToastMessage("Error al guardar el registro: " + (error.response?.data?.message || error.message));
+                showToastMessage("Error al actualizar el registro: " + (error.response?.data?.message || error.message));
             }
         } finally {
             setIsLoading(false);
@@ -192,18 +243,17 @@ const ModalCrear = ({
     };
 
     const limpiarFormulario = () => {
-        setSociedad("");
-        setCedis("");
-        setEtiqueta("");
-        setValor("");
-        setGrupoET("");
-        setId("");
-        setInfoAdicional("");
-        // Limpiar también los catálogos filtrados
-        setFilteredCedisCatalog([]);
-        setFilteredEtiquetasCatalog([]);
-        setFilteredEtiquetasCatalogOriginal([]);
-        setFilteredValoresCatalog([]);
+        // No limpiar completamente, solo resetear a los valores del registro
+        if (registroEditar) {
+            setSociedad(registroEditar.sociedad || "");
+            setCedis(registroEditar.sucursal || "");
+            setEtiqueta(registroEditar.etiqueta || "");
+            setValor(registroEditar.valor || "");
+            setGrupoET(registroEditar.idgroup || "");
+            setId(registroEditar.idg || "");
+            setInfoAdicional(registroEditar.info || "");
+        }
+        
         // Resetear filtros
         setFilters({
             ultFechaMod: "todos",
@@ -223,7 +273,7 @@ const ModalCrear = ({
                 stretch={false}
                 open={isModalOpen}
                 onAfterClose={handleCancelar}
-                headerText="Crear registro"
+                headerText="Editar registro"
                 style={{
                     width: "450px",
                     maxWidth: "90vw"
@@ -240,7 +290,7 @@ const ModalCrear = ({
                                     disabled={isLoading}
                                     loadingText="Guardando..."
                                 >
-                                    Guardar
+                                    Actualizar
                                 </Button>
                                 <Button design="Transparent" onClick={handleCancelar}>
                                     Cancelar
@@ -494,4 +544,4 @@ const ModalCrear = ({
     );
 }
 
-export default ModalCrear;
+export default ModalEditar;

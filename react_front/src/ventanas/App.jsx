@@ -32,6 +32,8 @@ import ModalCrear from "../components/ModalCrear";
 import ButtonDesign from "@ui5/webcomponents/dist/types/ButtonDesign.js";
 import ModalEditGrupoET from "../components/ModalEditGrupoET.jsx";
 import ModalFiltrosAvanzados from "../components/ModalFiltrosAvanzados.jsx";
+import ModalEditar from "../components/ModalEditar.jsx";
+import ModalFiltroET from "../components/ModalFiltroET.jsx";
 // Importacion de iconos e imagenes
 import "@ui5/webcomponents-icons/dist/menu.js";
 import "@ui5/webcomponents-icons/dist/home.js";
@@ -80,6 +82,19 @@ export default function App() {
   const [filteredCedisCatalog, setFilteredCedisCatalog] = useState([]);
   const [filteredEtiquetasCatalog, setFilteredEtiquetasCatalog] = useState([]);
   const [filteredValoresCatalog, setFilteredValoresCatalog] = useState([]);
+  const [filteredEtiquetasCatalogOriginal, setFilteredEtiquetasCatalogOriginal] = useState([]);
+
+  // Estados para el filtrado de etiquetas en editado inline
+  const [isModalFiltroETInlineOpen, setIsModalFiltroETInlineOpen] = useState(false);
+  const [filtersInline, setFiltersInline] = useState({
+    ultFechaMod: "todos",
+    coleccion: [],
+    seccion: [],
+  });
+
+  // Edicion en modal
+  const [isModalEditOpen, setIsModalEditOpen] = useState(false);
+  const [registroAEditar, setRegistroAEditar] = useState(null);
 
   // Para mensajes en el toast
   const [toastMessage, setToastMessage] = useState("");
@@ -128,33 +143,42 @@ export default function App() {
         if (!matchesSearch) return false;
       }
 
-      // Filtros avanzados
-      if (filters.sociedad && row.sociedad?.toString() !== filters.sociedad) {
-        return false;
+      if (filters.sociedad) {
+        const sociedadText = getDisplayText(sociedadesCatalog, row.sociedad) || row.sociedad;
+        if (!sociedadText.toString().toLowerCase().includes(filters.sociedad.toLowerCase())) {
+          return false;
+        }
       }
 
-      if (filters.cedis && row.sucursal?.toString() !== filters.cedis) {
-        return false;
+      if (filters.cedis) {
+        const cedisText = getDisplayText(cedisCatalog, row.sucursal) || row.sucursal;
+        if (!cedisText.toString().toLowerCase().includes(filters.cedis.toLowerCase())) {
+          return false;
+        }
       }
 
-      if (filters.etiqueta && !row.etiqueta?.toString().toLowerCase().includes(filters.etiqueta.toLowerCase())) {
-        return false;
+      if (filters.etiqueta) {
+        const etiquetaText = getDisplayText(etiquetasCatalog, row.etiqueta) || row.etiqueta;
+        if (!etiquetaText.toString().toLowerCase().includes(filters.etiqueta.toLowerCase())) {
+          return false;
+        }
       }
 
-      if (filters.valor && !row.valor?.toString().toLowerCase().includes(filters.valor.toLowerCase())) {
-        return false;
+      if (filters.valor) {
+        const valorText = getDisplayText(valoresCatalog, row.valor) || row.valor;
+        if (!valorText.toString().toLowerCase().includes(filters.valor.toLowerCase())) {
+          return false;
+        }
       }
 
-      // Filtro por fecha - CORREGIDO
+      // Filtro por fecha - MANTENIDO
       if (filters.fechaInicio || filters.fechaFin) {
-        // Extraer solo la fecha del campo registro (formato: "2025-11-24 05:39:35 (FMIRANDAJ)")
-        const fechaRegistro = row.registro?.split(' ')[0]; // Tomar solo "2025-11-24"
+        const fechaRegistro = row.registro?.split(' ')[0];
 
-        if (!fechaRegistro) return false; // Si no hay fecha, excluir el registro
+        if (!fechaRegistro) return false;
 
         const registroDate = new Date(fechaRegistro);
 
-        // Validar que la fecha sea válida
         if (isNaN(registroDate.getTime())) {
           console.warn('Fecha inválida en registro:', row.registro);
           return false;
@@ -162,15 +186,13 @@ export default function App() {
 
         if (filters.fechaInicio) {
           const startDate = new Date(filters.fechaInicio);
-          startDate.setHours(0, 0, 0, 0); // Establecer a inicio del día
-          //console.log(registroDate+"  "+startDate);
+          startDate.setHours(0, 0, 0, 0);
           if (registroDate < startDate) return false;
         }
 
         if (filters.fechaFin) {
           const endDate = new Date(filters.fechaFin);
-          endDate.setHours(23, 59, 59, 999); // Establecer a fin del día
-          //console.log(registroDate+"  "+endDate); 
+          endDate.setHours(23, 59, 59, 999);
           if (registroDate > endDate) return false;
         }
       }
@@ -286,84 +308,67 @@ export default function App() {
         const etiquetas = [];
         const valores = [];
 
-        console.log("RESPUESTA DEL BACKEND DE MIGUEL: ",registros);
+        //console.log("RESPUESTA DEL BACKEND DE MIGUEL: ", registros);
 
         registros.forEach((item) => {
-          // SOCIEDADES
-          if (item.IDSOCIEDAD && !sociedades.some((s) => s.key === item.IDSOCIEDAD) &&
-            item.parentEtiqueta !== "SOCIEDAD" &&
-            item.parentEtiqueta !== "CEDI") {
-            sociedades.push({
-              key: item.IDSOCIEDAD,
-              text: `Sociedad ${item.IDSOCIEDAD}`,
+          // OBTENER CATALOGO DE SOCIEDADES
+          if (item.ETIQUETA === "Sociedades Corporativas" && item.IDETIQUETA === "SOCIEDAD") {
+            item.valores.forEach(v => {
+              sociedades.push({
+                key: v.IDSOCIEDAD, // ID LO QUE SE GUARDA EN BD
+                text: v.VALOR, // LO QUE SE MUESTRA EN UI
+              });
             });
           }
 
-          // CEDIS
-          if (
-            item.IDSOCIEDAD &&
-            item.IDCEDI &&
-            !cedis.some((c) => c.key === item.IDCEDI && c.parentSoc === item.IDSOCIEDAD) &&
-            item.parentEtiqueta !== "CEDI" &&
-            item.parentEtiqueta !== "SOCIEDAD"
-          ) {
-            cedis.push({
-              key: item.IDCEDI,
-              text: `Cedi ${item.IDCEDI}`,
-              parentSoc: item.IDSOCIEDAD,
+          // OBTENER CATALOGO DE CEDIS
+          if (item.ETIQUETA === "Centros de Distribución" && item.IDETIQUETA === "CEDI") {
+            item.valores.forEach(v => {
+              cedis.push({
+                key: v.IDCEDI, // ID LO QUE SE GUARDA EN BD
+                text: v.VALOR, // LO QUE SE MUESTRA EN UI
+                parentSoc: v.IDSOCIEDAD, // PARA REALIZAR FILTRADO, SEGUN SOCIEDAD SELECCIONADA
+              });
             });
           }
 
-          // ETIQUETAS - Solo agregar si ETIQUETA está definida
+          // OBTENER CATALOGO DE ETIQUETAS - Solo agregar si ETIQUETA está definida
           if (item.IDETIQUETA && item.IDSOCIEDAD && item.IDCEDI &&
             !etiquetas.some((e) => e.key === item.IDETIQUETA) &&
             item.ETIQUETA !== undefined && item.ETIQUETA !== null &&
-            item.IDETIQUETA !== "SOCIEDAD") {
+            item.IDETIQUETA !== "SOCIEDAD" && item.IDETIQUETA !== "CEDI") {
+
             etiquetas.push({
-              key: item.IDETIQUETA,
-              text: item.ETIQUETA, // Ahora text está definido
+              key: item.IDETIQUETA, // ID QUE SE GUARDA EN BD
+              text: item.ETIQUETA, // LO QUE SE MUESTRA EN UI
               IDETIQUETA: item.IDETIQUETA,
               ETIQUETA: item.ETIQUETA,
-              IDSOCIEDAD: item.IDSOCIEDAD,
-              IDCEDI: item.IDCEDI,
-              COLECCION: item.COLECCION || "",
-              SECCION: item.SECCION || "",
+              IDSOCIEDAD: item.IDSOCIEDAD, // PARA REALIZAR FILTRADOS
+              IDCEDI: item.IDCEDI, // PARA REALIZAR FILTRADOS
+              COLECCION: item.COLECCION || "", // PARA MODAL DE FILTRO 
+              SECCION: item.SECCION || "", // PARA MODAL DE FILTRO 
+              createdAt: item.createdAt || "", // PARA MODAL DE FILTRO 
+              updatedAt: item.updatedAt || "", // PARA MODAL DE FILTRO 
               _raw: item
             });
           }
 
-          //console.log(item.valores);
-
-          // VALORES anidados
-          // if (Array.isArray(item.valores)) {
-          //   item.valores.forEach((v) => {
-          //     valores.push({
-          //       key: v.IDVALOR,     // ID REAL
-          //       text: v.IDVALOR,
-          //       IDVALOR: v.IDVALOR,
-          //       VALOR: v.VALOR,
-          //       IDSOCIEDAD: v.IDSOCIEDAD,
-          //       IDCEDI: v.IDCEDI,
-          //       parentEtiqueta: item.IDETIQUETA
-          //     });
-          //   });
-          // }
+          // OBTENER CATALOGO DE VALORES
           if (item.valores && Array.isArray(item.valores) && item.valores.length > 0) {
             item.valores.forEach((v) => {
-              if (v.IDETIQUETA !== "CEDI" && v.IDETIQUETA !== "SOCIEDAD") {
+              if (v.IDETIQUETA !== "CEDI" && v.IDETIQUETA !== "SOCIEDAD") { // SOLO TOMAR EN CUENTA CATALOGOS QUE SEAN DIFERENTE AL DE CEDIS O SOCIEDAD
                 valores.push({
-                  key: v.IDVALOR,     // ID REAL
-                  text: v.VALOR,
+                  key: v.IDVALOR,  // LO QUE SE GUARDA EN LA BD
+                  text: v.VALOR, // LO QUE SE MUESTRA EN LA UI
                   VALOR: v.VALOR,
                   IDVALOR: v.IDVALOR,
-                  IDSOCIEDAD: v.IDSOCIEDAD,
+                  IDSOCIEDAD: v.IDSOCIEDAD, // PARA HACER FILTRADOS
                   IDCEDI: v.IDCEDI,
                   parentEtiqueta: item.IDETIQUETA,
                 });
               }
             });
           }
-
 
         });
 
@@ -372,10 +377,10 @@ export default function App() {
         setValoresCatalog(valores);
         setSociedadesCatalog(sociedades);
 
-        console.log("sociedad", sociedades);
-        console.log("valores", valores);
-        console.log("etiqeutas", etiquetas);
-        console.log("cedis", cedis);
+        // console.log("sociedad", sociedades);
+        // console.log("valores", valores);
+        // console.log("etiqeutas", etiquetas);
+        // console.log("cedis", cedis);
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -387,6 +392,25 @@ export default function App() {
     }
     fetchCatalogos();
   }, [dbConnection]);
+
+  // Efecto para aplicar filtros inline cuando cambian
+  useEffect(() => {
+    if (filteredEtiquetasCatalogOriginal.length > 0) {
+      const etiquetasFiltradas = applyFiltersInline(filteredEtiquetasCatalogOriginal, filtersInline);
+      setFilteredEtiquetasCatalog(etiquetasFiltradas);
+
+      // Si la etiqueta actualmente seleccionada no está en los resultados filtrados, limpiar la selección
+      if (editingRowData?.etiqueta && !etiquetasFiltradas.find(et => et.key === editingRowData.etiqueta)) {
+        setEditingRowData(prev => ({
+          ...prev,
+          etiqueta: "",
+          valor: "",
+          idgroup: ""
+        }));
+        setFilteredValoresCatalog([]);
+      }
+    }
+  }, [filtersInline, filteredEtiquetasCatalogOriginal]);
 
   const columns = [
     { accessor: "checkbox", Header: "" },
@@ -559,8 +583,6 @@ export default function App() {
   };
 
   const handleDesactivar = async () => {
-    //if (!clickedRow) { alert("Selecciona un registro"); return; }
-
     // de momento solo se puede desactivar uno a la vez.
     if (selectedRowsArray.lenght > 1) return;
     setLoading(true);
@@ -605,6 +627,7 @@ export default function App() {
     if (!confirmar) return;
 
     try {
+
       const numSelectedRows = selectedRowsArray.length;
 
       setLoading(true);
@@ -722,25 +745,111 @@ export default function App() {
 
       // Pre-filtrar catálogos
       const cedis = cedisCatalog.filter(c =>
-        c.parentSoc.toString() === rowData.sociedad.toString()
+        c.parentSoc?.toString() === rowData.sociedad?.toString()
       );
       setFilteredCedisCatalog(cedis);
 
       const etiquetas = etiquetasCatalog.filter(et =>
-        et.IDSOCIEDAD?.toString() === rowData.sociedad.toString() &&
-        et.IDCEDI?.toString() === rowData.sucursal.toString()
+        et.IDSOCIEDAD?.toString() === rowData.sociedad?.toString() &&
+        et.IDCEDI?.toString() === rowData.sucursal?.toString()
       );
       setFilteredEtiquetasCatalog(etiquetas);
+      setFilteredEtiquetasCatalogOriginal(etiquetas); // GUARDAR EL FILTRO ORIGINAL
 
       const valores = valoresCatalog.filter(v =>
         v.parentEtiqueta === rowData.etiqueta
       );
       setFilteredValoresCatalog(valores);
+
+      // Resetear filtros inline
+      setFiltersInline({
+        ultFechaMod: "todos",
+        coleccion: [],
+        seccion: [],
+      });
     } else {
       setEditingRowData(null);
       setOriginalRowData(null);
+      // Limpiar también los catálogos filtrados cuando se cierra la fila
+      setFilteredEtiquetasCatalogOriginal([]);
     }
   };
+
+  // Función para aplicar filtros en la edición inline
+  const applyFiltersInline = (etiquetas, filtros) => {
+    if (!etiquetas.length) return etiquetas;
+
+    let filtered = [...etiquetas];
+
+    // Aplicar filtro por fecha
+    if (filtros.ultFechaMod && filtros.ultFechaMod !== "todos") {
+      const now = new Date();
+      let cutoffDate = new Date();
+
+      switch (filtros.ultFechaMod) {
+        case "1M":
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+        case "3M":
+          cutoffDate.setMonth(now.getMonth() - 3);
+          break;
+        case "6M":
+          cutoffDate.setMonth(now.getMonth() - 6);
+          break;
+        case "1Y":
+          cutoffDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          break;
+      }
+
+      filtered = filtered.filter(etiqueta => {
+        const updatedAt = new Date(etiqueta.updatedAt || etiqueta.createdAt);
+        return updatedAt >= cutoffDate;
+      });
+    }
+
+    // Aplicar filtro por colección
+    if (filtros.coleccion && filtros.coleccion.length > 0) {
+      filtered = filtered.filter(etiqueta =>
+        filtros.coleccion.includes(etiqueta.COLECCION)
+      );
+    }
+
+    // Aplicar filtro por sección
+    if (filtros.seccion && filtros.seccion.length > 0) {
+      filtered = filtered.filter(etiqueta =>
+        filtros.seccion.includes(etiqueta.SECCION)
+      );
+    }
+
+    return filtered;
+  };
+
+  // Función para manejar la aplicación de filtros desde el modal inline
+  const handleAplicarFiltrosInline = (nuevosFiltros) => {
+    setFiltersInline(nuevosFiltros);
+    setIsModalFiltroETInlineOpen(false);
+
+    // Aplicar filtros inmediatamente
+    if (filteredEtiquetasCatalogOriginal.length > 0) {
+      const etiquetasFiltradas = applyFiltersInline(filteredEtiquetasCatalogOriginal, nuevosFiltros);
+      setFilteredEtiquetasCatalog(etiquetasFiltradas);
+
+      // Si la etiqueta actualmente seleccionada no está en los resultados filtrados, limpiar la selección
+      if (editingRowData?.etiqueta && !etiquetasFiltradas.find(et => et.key === editingRowData.etiqueta)) {
+        setEditingRowData(prev => ({
+          ...prev,
+          etiqueta: "",
+          valor: "",
+          idgroup: ""
+        }));
+        setFilteredValoresCatalog([]);
+      }
+    }
+  };
+
+
 
   // Maneja los cambios en los inputs de la fila expandida
   const handleEditInputChange = (e) => {
@@ -840,8 +949,42 @@ export default function App() {
       {/* 🔹 ShellBar con menú hamburguesa */}
       <ShellBar
         primaryTitle="Proyecto final"
-        logo={<img alt="SAP Logo" src="https://ui5.github.io/webcomponents/images/sap-logo-svg.svg" />}
-        profile={<Avatar><img alt="person-placeholder" src="https://ui5.github.io/webcomponents-react/v2/assets/Person-B7wHqdJw.png" /></Avatar>}
+        logo={
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            height: "100%",
+            paddingRight: "10px"
+          }}>
+            <img
+              alt="React Logo"
+              src="https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"
+              style={{
+                height: "33px",
+                width: "auto",
+                objectFit: "contain"
+              }}
+            />
+
+            <div style={{ width: "1px", height: "24px", backgroundColor: "#ccc" }}></div>
+
+            <img
+              alt="SAP Logo"
+              src="https://ui5.github.io/webcomponents/images/sap-logo-svg.svg"
+              style={{
+                height: "36px",
+                width: "auto",
+                objectFit: "contain"
+              }}
+            />
+          </div>
+        }
+        profile={
+          <Avatar>
+            <img alt="person-placeholder" src="https://ui5.github.io/webcomponents-react/v2/assets/Person-B7wHqdJw.png" />
+          </Avatar>
+        }
         startButton={
           <Button
             icon="menu"
@@ -905,6 +1048,19 @@ export default function App() {
               disabled={loading}
             >
               Crear
+            </Button>
+            <Button
+              className="btn-editar"
+              icon="edit"
+              onClick={() => {
+                if (selectedRowsArray.length === 1) {
+                  setRegistroAEditar(selectedRowsArray[0]);
+                  setIsModalEditOpen(true);
+                }
+              }}
+              disabled={selectedRowsArray.length !== 1 || loading}
+            >
+              Editar
             </Button>
             <Button
               className="btn-eliminar"
@@ -1117,10 +1273,10 @@ export default function App() {
                   {/* ================================ FILA EXPANDIBLE DE EDICIÓN EN LINEA ======================================= */}
                   {isExpanded && (
                     <TableRow className="expanded-row">
-                      {/* ====== Celda para checkbox de seleccion ====== */}
+                      {/* ====== Celda vacía de checkbox de seleccion ====== */}
                       <TableCell />
 
-                      {/* ====== Celda para el btn de expandir fila (inline edit) ====== */}
+                      {/* ====== Celda vacía de btn de expandir fila (inline edit) ====== */}
                       <TableCell />
 
                       {/* ====== Sociedad ====== */}
@@ -1143,12 +1299,20 @@ export default function App() {
                             }));
 
                             // Filtrar CEDIS
-                            const filtered = cedisCatalog.filter(c =>
+                            const filteredCedis = cedisCatalog.filter(c =>
                               c.parentSoc?.toString() === selectedKey?.toString()
                             );
-                            setFilteredCedisCatalog(filtered);
+                            setFilteredCedisCatalog(filteredCedis);
+
+                            // Resetear filtros de etiquetas
                             setFilteredEtiquetasCatalog([]);
+                            setFilteredEtiquetasCatalogOriginal([]);
                             setFilteredValoresCatalog([]);
+                            setFiltersInline({
+                              ultFechaMod: "todos",
+                              coleccion: [],
+                              seccion: [],
+                            });
                           }}
                           placeholder="Selecciona una sociedad"
                           filter="Contains"
@@ -1166,7 +1330,7 @@ export default function App() {
                         <ComboBox
                           className="modal-combobox"
                           value={getDisplayText(filteredCedisCatalog, editingRowData.sucursal)}
-                          disabled={!editingRowData.sociedad || filteredCedisCatalog.length === 0}
+                          disabled={!editingRowData.sociedad || filteredCedisCatalog.length === 0 || loading}
                           onSelectionChange={(e) => {
                             const selectedItem = e.detail.item;
                             const selectedKey = selectedItem?.dataset.key;
@@ -1180,13 +1344,23 @@ export default function App() {
                               idgroup: ""
                             }));
 
-                            // Filtrar Etiquetas
-                            const filtered = etiquetasCatalog.filter(et =>
+                            // Filtrar Etiquetas - IMPORTANTE: usar la sociedad y cedis actuales
+                            const filteredEtiquetas = etiquetasCatalog.filter(et =>
                               et.IDSOCIEDAD?.toString() === editingRowData.sociedad?.toString() &&
                               et.IDCEDI?.toString() === selectedKey?.toString()
                             );
-                            setFilteredEtiquetasCatalog(filtered);
+                            console.log("Etiquetas filtradas para sociedad", editingRowData.sociedad, "y CEDI", selectedKey, ":", filteredEtiquetas);
+
+                            setFilteredEtiquetasCatalog(filteredEtiquetas);
+                            setFilteredEtiquetasCatalogOriginal(filteredEtiquetas); // GUARDAR EL ORIGINAL
                             setFilteredValoresCatalog([]);
+
+                            // Resetear filtros
+                            setFiltersInline({
+                              ultFechaMod: "todos",
+                              coleccion: [],
+                              seccion: [],
+                            });
                           }}
                           placeholder={filteredCedisCatalog.length === 0 ? "No hay CEDIS disponibles" : "Selecciona un CEDI"}
                           filter="Contains"
@@ -1200,36 +1374,49 @@ export default function App() {
 
                       {/* ====== Etiqueta ====== */}
                       <TableCell>
-                        <ComboBox
-                          className="modal-combobox"
-                          value={getDisplayText(filteredEtiquetasCatalog, editingRowData.etiqueta)}
-                          disabled={!editingRowData.sucursal || filteredEtiquetasCatalog.length === 0}
-                          onSelectionChange={(e) => {
-                            const selectedItem = e.detail.item;
-                            const selectedKey = selectedItem?.dataset.key;
+                        <FlexBox direction="Column" style={{ gap: '0.5rem' }}>
+                          <ComboBox
+                            className="modal-combobox"
+                            value={getDisplayText(filteredEtiquetasCatalog, editingRowData.etiqueta)}
+                            disabled={!editingRowData.sucursal || filteredEtiquetasCatalog.length === 0 || loading}
+                            onSelectionChange={(e) => {
+                              const selectedItem = e.detail.item;
+                              const selectedKey = selectedItem?.dataset.key;
 
-                            setEditingRowData(prev => ({
-                              ...prev,
-                              etiqueta: selectedKey || "",
-                              // Limpiar selección dependiente
-                              valor: "",
-                              idgroup: ""
-                            }));
+                              setEditingRowData(prev => ({
+                                ...prev,
+                                etiqueta: selectedKey || "",
+                                // Limpiar selección dependiente
+                                valor: "",
+                                idgroup: ""
+                              }));
 
-                            // Filtrar Valores
-                            const filtered = valoresCatalog.filter(v =>
-                              v.parentEtiqueta?.toString() === selectedKey?.toString()
-                            );
-                            setFilteredValoresCatalog(filtered);
-                          }}
-                          placeholder={filteredEtiquetasCatalog.length === 0 ? "No hay etiquetas disponibles" : "Selecciona una etiqueta"}
-                          filter="Contains"
-                          style={{ width: '400px' }}
-                        >
-                          {filteredEtiquetasCatalog.map(item =>
-                            <ComboBoxItem key={item.key} data-key={item.key} text={item.text} />
-                          )}
-                        </ComboBox>
+                              // Filtrar Valores
+                              const filtered = valoresCatalog.filter(v =>
+                                v.parentEtiqueta?.toString() === selectedKey?.toString()
+                              );
+                              setFilteredValoresCatalog(filtered);
+                            }}
+                            placeholder={
+                              filteredEtiquetasCatalog.length === 0
+                                ? "No hay etiquetas disponibles"
+                                : `Etiquetas (${filteredEtiquetasCatalog.length})`
+                            }
+                            filter="Contains"
+                            style={{ width: '100%' }}
+                          >
+                            {filteredEtiquetasCatalog.map(item =>
+                              <ComboBoxItem key={item.key} data-key={item.key} text={item.text} />
+                            )}
+                          </ComboBox>
+                          <Button
+                            icon="filter"
+                            design="Default"
+                            onClick={() => setIsModalFiltroETInlineOpen(true)}
+                            disabled={!editingRowData?.sociedad || !editingRowData?.sucursal || loading}
+                            title="Filtrar etiquetas"
+                          />
+                        </FlexBox>
                       </TableCell>
 
                       {/* ====== Valor ====== */}
@@ -1237,11 +1424,10 @@ export default function App() {
                         <ComboBox
                           className="modal-combobox"
                           value={getDisplayText(filteredValoresCatalog, editingRowData.valor)}
-                          disabled={!editingRowData.etiqueta || filteredValoresCatalog.length === 0}
+                          disabled={!editingRowData.etiqueta || filteredValoresCatalog.length === 0 || loading}
                           onSelectionChange={(e) => {
                             const selectedItem = e.detail.item;
                             const selectedKey = selectedItem?.dataset.key;
-
                             setEditingRowData(prev => ({
                               ...prev,
                               valor: selectedKey || ""
@@ -1268,11 +1454,10 @@ export default function App() {
                           />
                           <Button
                             icon="edit"
-                            design="Transparent"
+                            design="Default"
                             onClick={() => setIsEditGrupoETModalOpen(true)}
                             disabled={!editingRowData?.etiqueta || !editingRowData.valor || loading}
                             title="Editar Grupo ET"
-                            style={{ alignSelf: 'flex-start' }}
                           />
                         </FlexBox>
                       </TableCell>
@@ -1378,6 +1563,25 @@ export default function App() {
         cediSeleccionado={editingRowData?.sucursal}
       />
 
+      {/* Modal de edicion de registro */}
+      {isModalEditOpen && (
+        <ModalEditar
+          isModalOpen={isModalEditOpen}
+          handleCloseModal={() => {
+            setIsModalEditOpen(false);
+            setRegistroAEditar(null);
+          }}
+          dbConnection={dbConnection}
+          refetchData={fetchData}
+          sociedadesCatalog={sociedadesCatalog}
+          valoresCatalog={valoresCatalog}
+          cedisCatalog={cedisCatalog}
+          etiquetasCatalog={etiquetasCatalog}
+          showToastMessage={showToastMessage}
+          registroEditar={registroAEditar} // Pasar el registro a editar
+        />
+      )}
+
       {/* 🔹 Ventana de configuración para cambiar server de BD */}
       {showConfig && (
         <Dialog
@@ -1411,6 +1615,17 @@ export default function App() {
           handleCloseModal={() => setIsModalFiltersOpen(false)}
           filters={filters}
           setFilters={setFilters}
+        />
+      )}
+
+      {/* Modal de filtro para etiquetas en edición inline */}
+      {isModalFiltroETInlineOpen && (
+        <ModalFiltroET
+          isModalOpen={isModalFiltroETInlineOpen}
+          handleCloseModal={() => setIsModalFiltroETInlineOpen(false)}
+          handleAplicarFiltros={handleAplicarFiltrosInline}
+          etiquetasCatalog={filteredEtiquetasCatalogOriginal}
+          currentFilters={filtersInline}
         />
       )}
 

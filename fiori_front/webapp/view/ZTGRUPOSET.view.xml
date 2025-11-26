@@ -273,8 +273,8 @@
                     />
 
                     <!-- 2) Resto de columnas “normales” (solo texto) -->
-                    <Text text="{grupos>IDSOCIEDAD}" />
-                    <Text text="{grupos>IDCEDI}" />
+                    <Text text="{grupos>SOCIEDAD_TXT}" />
+                    <Text text="{grupos>CEDI_TXT}" />
                     <Text text="{grupos>ETIQUETA_TXT}" />
                     <Text text="{grupos>VALOR_TXT}" /> 
                     <Text text="{grupos>IDGRUPOET}" />

@@ -154,7 +154,7 @@ sap.ui.define([
       this.getView().setModel(oFilterModel, "filter");
     },
 
-    // ==== CARGA DE DATOS DESDE CAP/CDS (POST) ====
+     // ==== CARGA DE DATOS DESDE CAP/CDS (POST) ====
     _loadData: async function () {
       const oView = this.getView();
       oView.setBusy(true);
@@ -173,22 +173,28 @@ sap.ui.define([
 
         // Los registros vienen en data[0].dataRes
         const items = (((json || {}).data || [])[0] || {}).dataRes || [];
-        // Traer catálogo de etiquetas para obtener el texto descriptivo
-        const oCascadeModel  = this.getView().getModel("cascadeModel");
-        const aEtiquetasAll  = (oCascadeModel && oCascadeModel.getProperty("/etiquetasAll")) || [];
-        const aValoresAll   = (oCascadeModel && oCascadeModel.getProperty("/valoresAll")) || [];
 
-        // Normaliza/deriva campos útiles para la UI
+        // =========================
+        // 1) Catálogos del cascadeModel
+        // =========================
+        const oCascadeModel  = this.getView().getModel("cascadeModel") || new JSONModel({});
+        const aEtiquetasAll  = oCascadeModel.getProperty("/etiquetasAll")  || [];
+        const aValoresAll    = oCascadeModel.getProperty("/valoresAll")    || [];
+        const aSociedades    = oCascadeModel.getProperty("/sociedades")    || [];
+        const aCedisAll      = oCascadeModel.getProperty("/cedisAll")      || [];
+
+        // =========================
+        // 2) Normalizar y enriquecer registros
+        // =========================
         const normalized = items.map(x => {
-
-          // 🔍 Buscar en el catálogo la etiqueta correspondiente
+          // --- Buscar ETIQUETA en catálogo ---
           const oMatch = aEtiquetasAll.find(e =>
             String(e.IDSOCIEDAD) === String(x.IDSOCIEDAD) &&
             String(e.IDCEDI)     === String(x.IDCEDI) &&
             String(e.IDETIQUETA) === String(x.IDETIQUETA)
           );
 
-          // 🔍 Buscar VALOR correspondiente en valoresAll
+          // --- Buscar VALOR en catálogo ---
           const oValorMatch = aValoresAll.find(v =>
             String(v.IDSOCIEDAD)     === String(x.IDSOCIEDAD) &&
             String(v.IDCEDI)         === String(x.IDCEDI) &&
@@ -196,38 +202,54 @@ sap.ui.define([
             String(v.IDVALOR)        === String(x.IDVALOR)
           );
 
+          // --- Buscar SOCIEDAD en catálogo ---
+          const oSocMatch = aSociedades.find(s =>
+            String(s.key) === String(x.IDSOCIEDAD)
+          );
 
-          // Texto que queremos mostrar en la tabla
-          // Texto amigable SOLO con ALIAS
+          // --- Buscar CEDI en catálogo (por sociedad + cedi) ---
+          const oCediMatch = aCedisAll.find(c =>
+            String(c.key)       === String(x.IDCEDI) &&
+            String(c.parentSoc) === String(x.IDSOCIEDAD)
+          );
+
+          // Texto amigable de ETIQUETA
           const sEtiquetaTxt =
-            (oMatch && oMatch.ALIAS) ||  // alias desde el catálogo “maestro”
-            x.ALIAS ||                   // alias que venga en el propio item (por si acaso)
-            x.IDETIQUETA;                // último fallback para no dejarlo vacío
+            (oMatch && oMatch.ALIAS) ||
+            x.ALIAS ||
+            x.IDETIQUETA;
 
-            // Texto amigable del valor (ALIAS > VALOR > IDVALOR)
+          // Texto amigable de VALOR
           const sValorTxt =
             (oValorMatch && oValorMatch.ALIAS && oValorMatch.ALIAS.trim()) ||
             (oValorMatch && oValorMatch.VALOR && oValorMatch.VALOR.trim()) ||
             x.IDVALOR;
 
+          // Texto amigable de SOCIEDAD y CEDI
+          const sSociedadTxt = oSocMatch  ? oSocMatch.text  : String(x.IDSOCIEDAD ?? "");
+          const sCediTxt     = oCediMatch ? oCediMatch.text : String(x.IDCEDI ?? "");
+
           return {
             _id: x._id,
+
+            // IDs reales
             IDSOCIEDAD: String(x.IDSOCIEDAD ?? ""),
-            IDCEDI: String(x.IDCEDI ?? ""),
-
-            // ID real
+            IDCEDI:     String(x.IDCEDI ?? ""),
             IDETIQUETA: x.IDETIQUETA,
+            IDVALOR:    String(x.IDVALOR ?? ""),
+            IDGRUPOET:  String(x.IDGRUPOET ?? ""),
+            ID:         String(x.ID ?? ""),
 
-            // texto amigable para la tabla
+            // ✅ Textos amigables para la tabla
+            SOCIEDAD_TXT: sSociedadTxt,
+            CEDI_TXT:     sCediTxt,
             ETIQUETA_TXT: sEtiquetaTxt,
             VALOR_TXT:    sValorTxt,
-             // MUY IMPORTANTE para el ComboBox:
-            text: sEtiquetaTxt,
-            key:  x.IDETIQUETA,        // y key="{key}"
 
-            IDVALOR: String(x.IDVALOR ?? ""),
-            IDGRUPOET: String(x.IDGRUPOET ?? ""),
-            ID: String(x.ID ?? ""), 
+            // Para combos (Grupo ET, etc.)
+            text: sEtiquetaTxt,
+            key:  x.IDETIQUETA,
+
             INFOAD: x.INFOAD,
             FECHAREG: x.FECHAREG,
             HORAREG: x.HORAREG,
@@ -237,22 +259,26 @@ sap.ui.define([
             USUARIOMOD: x.USUARIOMOD,
             ACTIVO: x.ACTIVO,
             BORRADO: x.BORRADO,
+
             EstadoTxt: x.ACTIVO ? "Activo" : "Inactivo",
             EstadoUI5: x.ACTIVO ? "Success" : "Error",
             EstadoIcon: x.ACTIVO ? "sap-icon://sys-enter-2" : "sap-icon://status-negative",
             EstadoIconColor: x.ACTIVO ? "Positive" : "Negative",
+
             RegistroCompleto: `${x.FECHAREG || ''} ${x.HORAREG || ''} (${x.USUARIOREG || 'N/A'})`,
-            ModificacionCompleta: x.FECHAULTMOD ? `${x.FECHAULTMOD} ${x.HORAULTMOD} (${x.USUARIOMOD || 'N/A'})` : 'Sin modificaciones'
+            ModificacionCompleta: x.FECHAULTMOD
+              ? `${x.FECHAULTMOD} ${x.HORAULTMOD} (${x.USUARIOMOD || 'N/A'})`
+              : 'Sin modificaciones'
           };
         });
 
-        // Guardamos todo tal cual viene del backend
+        // Guardamos todo tal cual viene del backend pero enriquecido
         this._aAllItems = normalized;
-        this._aFilteredItems = [...this._aAllItems];   // <- SIN ordenar aquí
+        this._aFilteredItems = [...this._aAllItems];
 
         // Modelo de la tabla y primera página
         this.getView().setModel(new JSONModel(), "grupos");
-        this._updateTablePage();           // Aplicamos filtros/orden por defecto y mostramos la primera página
+        this._updateTablePage();
 
       } catch (e) {
         MessageToast.show("Error cargando datos: " + e.message);
@@ -260,8 +286,6 @@ sap.ui.define([
         oView.setBusy(false);
         this.onSelectionChange(); // deshabilita botones de acción
       }
-      
-
     },
 
     onSelectionChange: function () {
@@ -489,6 +513,7 @@ sap.ui.define([
     // ==== ACCIONES (crear/editar) – placeholders ====
     onCreatePress: async function () {
       await this._loadExternalCatalogData(); // <-- cargar catálogos antes
+      this.getView().getModel("cascadeModel").getProperty("/sociedades")
       this._getCreateDialog().then((oDialog) => {
         oDialog.open();
       });
@@ -567,153 +592,141 @@ sap.ui.define([
       return this._oCreateDialog;
     },
 
-    _loadExternalCatalogData: async function () { 
-      const oView = this.getView();
-      const oModel = new sap.ui.model.json.JSONModel({
-        sociedades: [],
-        cedisAll: [],
-        etiquetasAll: [],
-        valoresAll: [],
-        cedis: [],
-        etiquetas: [],
-        valores: []
-      });
-      oView.setModel(oModel, "cascadeModel");
+      _loadExternalCatalogData: async function () {
 
-      const oSwitchModel = this.getView().getModel("dbServerSwitch");
-      const bIsAzure = oSwitchModel.getProperty("/state");
+        const oView = this.getView();
 
-      const sBaseUrl = "http://localhost:3034/api/cat/crudLabelsValues";
-      const sDBServer = bIsAzure ? "CosmosDB" : "MongoDB";
-      const sLoggedUser = "MIGUELLOPEZ";
-
-      const url = `${sBaseUrl}?ProcessType=GetAll&LoggedUser=${sLoggedUser}&DBServer=${sDBServer}`;
-
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            operations: [
-              {
-                collection: "LabelsValues",
-                action: "GETALL",
-                payload: {}
-              }
-            ]
-          }),
+        // Modelo donde conectan tus ComboBox del create
+        const oCascadeModel = new sap.ui.model.json.JSONModel({
+            sociedades: [],
+            cedisAll: [],
+            etiquetasAll: [],
+            valoresAll: []
         });
 
-        const json = await res.json();
-        console.log("📥 Respuesta sin parsear:", json);
+        oView.setModel(oCascadeModel, "cascadeModel");
 
-        const registros = json?.data?.[0]?.dataRes || [];
-        console.log("✅ DataRes procesado:", registros);
+        // Detectar servidor seleccionado (Mongo / Azure)
+        const oSwitchModel = this.getView().getModel("dbServerSwitch");
+        const bIsAzure = oSwitchModel.getProperty("/state");
 
-        if (!Array.isArray(registros) || registros.length === 0) {
-          console.warn("⚠️ No se encontraron registros en la respuesta");
-          return;
+        const sBaseUrl = "http://localhost:3034/api/cat/crudLabelsValues";
+        const sDBServer = bIsAzure ? "CosmosDB" : "MongoDB";
+        const sLoggedUser = "MIGUELLOPEZ";
+
+        const url = `${sBaseUrl}?ProcessType=GetAll&LoggedUser=${sLoggedUser}&DBServer=${sDBServer}`;
+
+        try {
+
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    operations: [
+                        {
+                            collection: "LabelsValues",
+                            action: "GETALL",
+                            payload: {}
+                        }
+                    ]
+                })
+            });
+
+            const data = await res.json();
+            const registros = data.data?.[0]?.dataRes || [];
+
+            console.warn("Registros recibidos:", registros);
+
+            if (!Array.isArray(registros) || registros.length === 0) {
+                console.warn("⚠️ No se encontraron registros en la respuesta");
+                return;
+            }
+
+            const sociedades = [];
+            const cedis = [];
+            const etiquetas = [];
+            const valores = [];
+            console.log("📥 Respuesta del backend de Miguel:", registros);
+            registros.forEach((item) => {
+
+                // OBTENER CATALOGO DE SOCIEDADES
+                if (item.ETIQUETA === "Sociedades Corporativas" && item.IDETIQUETA === "SOCIEDAD") {
+                    item.valores.forEach(v => {
+                        sociedades.push({
+                            key: v.IDSOCIEDAD,
+                            text: v.VALOR
+                        });
+                    });
+                }
+
+                // OBTENER CATALOGO DE CEDIS
+                if (item.ETIQUETA === "Centros de Distribución" && item.IDETIQUETA === "CEDI") {
+                    item.valores.forEach(v => {
+                        cedis.push({
+                            key: v.IDCEDI,
+                            text: v.VALOR,
+                            parentSoc: v.IDSOCIEDAD
+                        });
+                    });
+                }
+
+                // ETIQUETAS
+                if (
+                    item.IDETIQUETA &&
+                    item.IDSOCIEDAD &&
+                    item.IDCEDI &&
+                    !etiquetas.some(e => e.key === item.IDETIQUETA) &&
+                    item.IDETIQUETA !== "SOCIEDAD" &&
+                    item.IDETIQUETA !== "CEDI"
+                ) {
+                    etiquetas.push({
+                        key: item.IDETIQUETA,
+                        text: item.ETIQUETA,
+                        IDETIQUETA: item.IDETIQUETA,
+                        IDSOCIEDAD: item.IDSOCIEDAD,
+                        IDCEDI: item.IDCEDI,
+                        COLECCION: item.COLECCION ?? "",
+                        SECCION: item.SECCION ?? ""
+                    });
+                }
+
+                // VALORES
+                if (item.valores && item.valores.length > 0) {
+                    item.valores.forEach(v => {
+                        if (v.IDETIQUETA !== "CEDI" && v.IDETIQUETA !== "SOCIEDAD") {
+                            valores.push({
+                                key: v.IDVALOR,
+                                text: v.VALOR,
+                                IDVALOR: v.IDVALOR,
+                                IDSOCIEDAD: v.IDSOCIEDAD,
+                                IDCEDI: v.IDCEDI,
+                                parentEtiqueta: item.IDETIQUETA
+                            });
+                        }
+                    });
+                }
+            });
+
+            console.log("Sociedades:", sociedades);
+            console.log("Cedis:", cedis);
+            console.log("Etiquetas:", etiquetas);
+            console.log("Valores:", valores);
+
+            // Guardar datos en el modelo
+            oCascadeModel.setProperty("/sociedades", sociedades);
+            oCascadeModel.setProperty("/cedisAll", cedis);
+            oCascadeModel.setProperty("/etiquetasAll", etiquetas);
+            oCascadeModel.setProperty("/valoresAll", valores);
+
+        } catch (err) {
+            console.error("❌ Error al cargar catálogos:", err);
+
+            oCascadeModel.setProperty("/sociedades", []);
+            oCascadeModel.setProperty("/cedisAll", []);
+            oCascadeModel.setProperty("/etiquetasAll", []);
+            oCascadeModel.setProperty("/valoresAll", []);
         }
-
-        //  Construimos listas únicas
-        const sociedades = [];
-        const cedis = [];
-        const etiquetas = [];
-        const valores = [];
-
-        registros.forEach((item) => {
-
-          // SOCIEDADES
-          if (item.IDSOCIEDAD && !sociedades.some((s) => s.key === item.IDSOCIEDAD)) {
-            sociedades.push({
-              key: item.IDSOCIEDAD,
-              text: `Sociedad ${item.IDSOCIEDAD}`,
-            });
-          }
-
-          // CEDIS
-          if (
-            item.IDCEDI &&
-            !cedis.some((c) => c.key === item.IDCEDI && c.parentSoc === item.IDSOCIEDAD)
-          ) {
-            cedis.push({
-              key: item.IDCEDI,
-              text: `Cedi ${item.IDCEDI}`,
-              parentSoc: item.IDSOCIEDAD,
-            });
-          }
-
-          // ETIQUETAS (IDS reales + conservar COLECCION/SECCION para filtros)
-          if (
-            item.IDETIQUETA &&
-            !etiquetas.some((e) =>
-              e.IDSOCIEDAD === item.IDSOCIEDAD &&
-              e.IDCEDI     === item.IDCEDI &&
-              e.IDETIQUETA === item.IDETIQUETA
-            )
-          ) {
-
-            // Texto “bonito”: ALIAS > ETIQUETA > IDETIQUETA
-            const sTxt =
-              (item.ALIAS && item.ALIAS.trim()) ||
-              (item.ETIQUETA && item.ETIQUETA.trim()) ||
-              item.IDETIQUETA;
-
-            etiquetas.push({
-              key:        item.IDETIQUETA,
-              text:       sTxt,              // lo que verá el ComboBox
-              IDETIQUETA: item.IDETIQUETA,
-              ALIAS:      item.ALIAS || "",
-              ETIQUETA:   item.ETIQUETA,
-              IDSOCIEDAD: item.IDSOCIEDAD,
-              IDCEDI:     item.IDCEDI,
-              COLECCION:  item.COLECCION || "",
-              SECCION:    item.SECCION || "",
-              _raw:       item
-            });
-          }
-
-          // VALORES anidados
-          if (Array.isArray(item.valores)) {
-            item.valores.forEach((v) => {
-              const sValorTxt =
-                (v.ALIAS && v.ALIAS.trim()) ||
-                (v.VALOR && v.VALOR.trim()) ||
-                v.IDVALOR;
-
-              valores.push({
-                key: v.IDVALOR,
-                text: sValorTxt,                 // ALIAS si existe
-                IDVALOR: v.IDVALOR,
-                VALOR: v.VALOR,
-                ALIAS: v.ALIAS,
-                IDSOCIEDAD: item.IDSOCIEDAD,     // del padre
-                IDCEDI: item.IDCEDI,             // del padre
-                parentEtiqueta: item.IDETIQUETA
-              });
-            });
-          }
-
-        }); // <- cierre de registros.forEach
-
-        // Logs finales
-        console.log("✅ Sociedades cargadas:", sociedades);
-        console.log("✅ CEDIS cargados:", cedis);
-        console.log("✅ Etiquetas cargadas:", etiquetas);
-        console.log("✅ Valores cargados:", valores);
-
-        // Actualizamos el modelo
-        oModel.setProperty("/sociedades", sociedades);
-        oModel.setProperty("/cedisAll", cedis);
-        oModel.setProperty("/etiquetasAll", etiquetas);
-        oModel.setProperty("/valoresAll", valores);
-
-      } catch (err) {
-        console.error("💥 Error al cargar catálogos:", err);
-      }
     },
-
-
 
     // --- PASO 1: Poblar Sociedades ---
     _populateSociedades: function () {

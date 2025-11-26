@@ -24,7 +24,7 @@
                     selectionChange=".onCediChange"
                     enabled="{= !!${createModel>/IDSOCIEDAD} }"
                     placeholder="Selecciona un CEDI">
-                    <core:Item key="{cascadeModel>key}" text="{cascadeModel>text}" />
+                    <core:Item key="{cascadeModel>key}" text="{cascadeModel>text}"/>
                     </ComboBox>
 
                     <Label text="Etiqueta" required="true" />
@@ -61,10 +61,9 @@
                         enabled="{= !!${createModel>/IDETIQUETA} }"
                         placeholder="Selecciona un Valor"
                         width="100%">
-                        <!-- Guarda IDVALOR, muestra VALOR -->
                         <core:Item
-                           key="{cascadeModel>IDVALOR}"
-                           text="{cascadeModel>text}" /> 
+                        key="{cascadeModel>key}"
+                        text="{cascadeModel>text}" /> 
                     </ComboBox>
 
                     <Label text="Grupo ET" />

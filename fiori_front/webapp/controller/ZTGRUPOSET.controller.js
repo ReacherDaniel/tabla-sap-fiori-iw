@@ -2107,6 +2107,7 @@ sap.ui.define([
         return {
           IDETIQUETA:   e.IDETIQUETA,       // ID real -> key del ComboBox
           ETIQUETA:     sTxt,               // texto mostrado
+          text:        sTxt, 
           ALIAS:        e.ALIAS || "",
           RAW_ETIQUETA: e.text || e.ETIQUETA
         };

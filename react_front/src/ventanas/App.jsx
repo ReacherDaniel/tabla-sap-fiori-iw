@@ -52,7 +52,7 @@ import "@ui5/webcomponents-icons/dist/decline.js";
 import "@ui5/webcomponents-fiori/dist/illustrations/AddingColumns.js";
 
 const URL_BASE = "https://app-restful-sap-cds.onrender.com"; // http://localhost:4004
-const URL_BASE_BACKEND_MIGUEL = "http://localhost:3034";
+const URL_BASE_BACKEND_MIGUEL = "https://backend-etiquetas-valores-fic.onrender.com";
 
 export default function App() {
   // --- Estados originales ---

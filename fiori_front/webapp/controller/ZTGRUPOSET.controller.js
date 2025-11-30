@@ -605,7 +605,7 @@ sap.ui.define([
         const oSwitchModel = this.getView().getModel("dbServerSwitch");
         const bIsAzure = oSwitchModel.getProperty("/state");
 
-        const sBaseUrl = "http://localhost:3034/api/cat/crudLabelsValues";
+        const sBaseUrl = "https://backend-etiquetas-valores-fic.onrender.com/api/cat/crudLabelsValues";
         const sDBServer = bIsAzure ? "CosmosDB" : "MongoDB";
         const sLoggedUser = "MIGUELLOPEZ";
 
